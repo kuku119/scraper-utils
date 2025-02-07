@@ -5,11 +5,19 @@
 from __future__ import annotations
 
 from pathlib import Path
+from tkinter.filedialog import (
+    askopenfilename as __ask_open_filename,
+    askopenfilenames as __ask_open_filenames,
+)
 from typing import TYPE_CHECKING
 
 from aiofiles import open as __async_open
 
+from ..exceptions.file_exception import NoSelectedFileError as __NoSelectedFileError
+
 if TYPE_CHECKING:
+    from typing import Optional, Iterable, Generator
+
     StrOrPath = str | Path
 
 __sync_open = open
@@ -127,3 +135,38 @@ def write_str_sync(file: StrOrPath, data: str, replace: bool = True, encoding: s
             fp.write(data)
 
     return file
+
+
+def select_file_dialog(
+    title: str = '请选择文件',
+    initialdir: Optional[StrOrPath] = None,
+    filetypes: Optional[Iterable[tuple[str, str | list[str] | tuple[str, ...]]]] = None,
+) -> Path:
+    """打开文件对话框，选取单个文件，返回所选取文件的绝对路径"""
+    if filetypes is None:
+        result = __ask_open_filename(title=title, initialdir=initialdir)
+    else:
+        result = __ask_open_filename(title=title, initialdir=initialdir, filetypes=filetypes)
+
+    if len(result) == 0:
+        raise __NoSelectedFileError('未选择目标文件')
+
+    return Path(result)
+
+
+def select_files_dialog(
+    title: str = '请选择文件',
+    initialdir: Optional[StrOrPath] = None,
+    filetypes: Optional[Iterable[tuple[str, str | list[str] | tuple[str, ...]]]] = None,
+) -> Generator[Path, None, None]:
+    """打开文件对话框，选取多个文件，返回所选取文件的绝对路径"""
+    if filetypes is None:
+        results = __ask_open_filenames(title=title, initialdir=initialdir)
+    else:
+        results = __ask_open_filenames(title=title, initialdir=initialdir, filetypes=filetypes)
+
+    if len(results) == 0:
+        raise __NoSelectedFileError('未选择目标文件')
+
+    for r in results:
+        yield Path(r)
