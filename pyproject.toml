@@ -1,0 +1,42 @@
+[project]
+name = "scraper-utils"
+version = "0.1.0"
+description = "爬虫所需工具"
+authors = [{ name = "Jiang", email = "jdtcty2002@163.com" }]
+requires-python = ">=3.13"
+dependencies = [
+    "aiofiles (>=24.1.0,<25.0.0)",
+    "aiohttp (>=3.11.12,<4.0.0)",
+    "pillow (>=11.1.0,<12.0.0)",
+    "openpyxl (>=3.1.5,<4.0.0)",
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+black = "^25.1.0"
+
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.3.4"
+pytest-asyncio = "^0.25.3"
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+
+
+[tool.black]
+skip-string-normalization = true
+line-length = 120
+
+
+[tool.poetry]
+packages = [
+    { include = "scraper_utils" }
+]
