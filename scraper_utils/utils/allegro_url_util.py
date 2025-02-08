@@ -33,6 +33,9 @@ __clean_product_id_pattern = re.compile(r'oferta/[a-zA-Z0-9-]*?(\d{11})')
 
 def build_search_url(keyword: str, page: int = 1) -> str:
     """根据关键词和页码构造搜索页 URL"""
+    if page < 1:
+        raise ValueError(f'page 必须大于 0，page={page}')
+
     keyword = quote_plus(keyword)
     if page == 1:
         return f'{BASE_URL}/listing?string={keyword}'
