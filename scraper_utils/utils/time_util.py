@@ -4,17 +4,23 @@
 
 from __future__ import annotations
 
-import datetime as __datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from datetime import datetime as datetime_type, tzinfo
+    from datetime import tzinfo
     from typing import Optional
 
 
-def now(tz: Optional[tzinfo] = None) -> datetime_type:
+__all__ = [
+    'now',
+    'now_str',
+]
+
+
+def now(tz: Optional[tzinfo] = None) -> datetime:
     """获取特定时区的当前时间，默认为本地时区"""
-    return __datetime.datetime.now(tz=tz)
+    return datetime.now(tz=tz)
 
 
 def now_str(formatter: str = '%Y-%m-%d %H:%M:%S', tz: Optional[tzinfo] = None) -> str:
