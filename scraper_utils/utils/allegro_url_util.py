@@ -4,31 +4,43 @@ Allegro URL 相关工具
 
 from __future__ import annotations
 
-import re as __re
+import re
 from typing import TYPE_CHECKING
-from urllib.parse import quote_plus as __quote_plus
+from urllib.parse import quote_plus
 
 if TYPE_CHECKING:
     from typing import Generator, Optional
 
 
+__all__ = [
+    #
+    'BASE_URL',
+    #
+    'build_search_url',
+    'build_search_urls',
+    #
+    'build_shop_url',
+    #
+    'build_product_url',
+    'clean_product_id',
+]
+
+
 BASE_URL = 'https://allegro.pl'
-__clean_product_id_pattern = __re.compile(r'oferta/[a-zA-Z0-9-]*?(\d{11})')
+
+__clean_product_id_pattern = re.compile(r'oferta/[a-zA-Z0-9-]*?(\d{11})')
 
 
 def build_search_url(keyword: str, page: int = 1) -> str:
     """根据关键词和页码构造搜索页 URL"""
-    keyword = __quote_plus(keyword)
+    keyword = quote_plus(keyword)
     if page == 1:
         return f'{BASE_URL}/listing?string={keyword}'
     else:
         return f'{BASE_URL}/listing?string={keyword}&p={page}'
 
 
-def build_search_urls(
-    keyword: str,
-    max_page: int = 1,
-) -> Generator[str, None, None]:
+def build_search_urls(keyword: str, max_page: int = 1) -> Generator[str, None, None]:
     """根据关键词和页码构造搜索页 URL"""
     return (build_search_url(keyword=keyword, page=i) for i in range(1, max_page + 1))
 
