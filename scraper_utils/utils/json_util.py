@@ -2,7 +2,7 @@
 JSON 相关工具
 """
 
-# TODO
+# TODO: 需要添加泛化的 read_json 和 write_json
 
 from __future__ import annotations
 

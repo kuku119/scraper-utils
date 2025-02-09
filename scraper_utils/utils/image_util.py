@@ -2,7 +2,7 @@
 图片相关工具
 """
 
-# TODO
+# TODO: 需要添加泛化的 read_image 和 write_image
 
 from __future__ import annotations
 
