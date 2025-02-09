@@ -10,6 +10,16 @@ if TYPE_CHECKING:
     from typing import Any
 
 
+__all__ = [
+    #
+    'all_none',
+    'all_not_none',
+    #
+    'any_none',
+    'any_not_none',
+]
+
+
 def all_none(*objs: Any) -> bool:
     """全为空"""
     return all(obj is None for obj in objs)

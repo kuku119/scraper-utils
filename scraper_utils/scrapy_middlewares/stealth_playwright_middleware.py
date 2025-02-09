@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from playwright_stealth import stealth_async
+from playwright_stealth import stealth_async as _stealth_async
 
 if TYPE_CHECKING:
     from typing import Self, Optional
@@ -18,6 +18,11 @@ if TYPE_CHECKING:
     from scrapy.http.request import Request
     from scrapy.spiders import Spider
     from scrapy import signals
+
+
+__all__ = [
+    'StealthPlaywrightMiddleware',
+]
 
 
 class StealthPlaywrightMiddleware:
@@ -50,4 +55,4 @@ class StealthPlaywrightMiddleware:
             if page is None:
                 raise RuntimeError('playwright_page is None')
             else:
-                await stealth_async(page)
+                await _stealth_async(page)
