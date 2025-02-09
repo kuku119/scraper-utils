@@ -4,9 +4,9 @@ Allegro URL 相关工具
 
 from __future__ import annotations
 
-import re
+import re as _re
 from typing import TYPE_CHECKING
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus as _quote_plus
 
 if TYPE_CHECKING:
     from typing import Generator, Optional
@@ -28,7 +28,7 @@ __all__ = [
 
 BASE_URL = 'https://allegro.pl'
 
-__clean_product_id_pattern = re.compile(r'oferta/[a-zA-Z0-9-]*?(\d{11})')
+__clean_product_id_pattern = _re.compile(r'oferta/[a-zA-Z0-9-]*?(\d{11})')
 
 
 def build_search_url(keyword: str, page: int = 1) -> str:
@@ -36,7 +36,7 @@ def build_search_url(keyword: str, page: int = 1) -> str:
     if page < 1:
         raise ValueError(f'page 必须大于 0，page={page}')
 
-    keyword = quote_plus(keyword)
+    keyword = _quote_plus(keyword)
     if page == 1:
         return f'{BASE_URL}/listing?string={keyword}'
     else:

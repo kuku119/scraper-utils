@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import Enum as _Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -16,7 +16,7 @@ __all__ = [
 ]
 
 
-class AmazonSite(Enum):
+class AmazonSite(_Enum):
     """
     亚马逊站点
 
