@@ -34,12 +34,14 @@ if TYPE_CHECKING:
 
 __all__ = [
     #
-    'stealth_page',
-    #
     'launch_browser',
     'launch_persistent_browser',
     #
     'close_browser',
+    #
+    'create_new_page',
+    #
+    'stealth_page',
 ]
 
 __lock = _asyncio.Lock()
