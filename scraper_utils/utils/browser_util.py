@@ -33,7 +33,24 @@ if TYPE_CHECKING:
     from playwright._impl._api_structures import ProxySettings
     from playwright_stealth import StealthConfig
 
+    from ..enums.browser_enum import ResourceType
+
     StrOrPath = str | Path
+    # ResourceType = Literal[
+    #     'document',
+    #     'stylesheet',
+    #     'image',
+    #     'media',
+    #     'font',
+    #     'script',
+    #     'texttrack',
+    #     'xhr',
+    #     'fetch',
+    #     'eventsource',
+    #     'websocket',
+    #     'manifest',
+    #     'other',
+    # ]
 
 
 __all__ = [
@@ -68,6 +85,7 @@ async def launch_browser(
     args: Optional[Sequence[str]] = None,
     ignore_default_args: Sequence[str] = ('--enable-automation',),
     proxy: Optional[ProxySettings] = None,
+    chromium_sandbox: bool = False,
     **kwargs,
 ) -> PlaywrightBrowser:
     """
@@ -92,6 +110,7 @@ async def launch_browser(
                 proxy=proxy,
                 slow_mo=slow_mo,
                 timeout=timeout,
+                chromium_sandbox=chromium_sandbox,
                 **kwargs,
             )
 
@@ -114,6 +133,7 @@ async def launch_persistent_browser(
     proxy: Optional[ProxySettings] = None,
     no_viewport: bool = True,
     user_agent: Optional[str] = None,
+    chromium_sandbox: bool = False,
     **kwargs,
 ) -> PlaywrightBrowserContext:
     """
@@ -133,7 +153,7 @@ async def launch_persistent_browser(
                 user_data_dir=user_data_dir,
                 executable_path=executable_path,
                 channel=channel,
-                # args=args,
+                args=args,
                 ignore_default_args=ignore_default_args,
                 timeout=timeout,
                 headless=headless,
@@ -141,6 +161,7 @@ async def launch_persistent_browser(
                 slow_mo=slow_mo,
                 no_viewport=no_viewport,
                 user_agent=user_agent,
+                chromium_sandbox=chromium_sandbox,
                 **kwargs,
             )
 
@@ -185,7 +206,7 @@ async def stealth_page(
 async def create_new_page(
     stealth: bool = False,
     stealth_config: Optional[StealthConfig] = None,
-    abort_resources: Optional[Sequence[str]] = None,
+    abort_resources: Optional[Sequence[ResourceType]] = None,
     no_viewport: bool = True,
     **page_kwargs,
 ) -> PlaywrightPage:
@@ -207,7 +228,9 @@ async def create_new_page(
         await stealth_page(page=page, stealth_config=stealth_config)
 
     if abort_resources is not None:
-        for res in abort_resources:
-            await page.route(res, lambda r: r.abort())
+        await page.route(
+            '**/*',
+            lambda r: r.abort() if r.request.resource_type in abort_resources else r.continue_(),
+        )
 
     return page

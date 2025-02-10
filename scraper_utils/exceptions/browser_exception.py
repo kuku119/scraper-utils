@@ -2,7 +2,10 @@
 浏览器相关异常
 """
 
+from playwright.async_api import Error as PlaywrightError
+
 __all__ = [
+    'PlaywrightError',
     'BaseBrowserError',
     'BrowserLaunchedError',
     'BrowserClosedError',
