@@ -103,7 +103,7 @@ async def write_json_async(
     data: Any,
     encoding: str = 'utf-8',
     ensure_ascii: bool = False,
-    indent: int | str = 4,
+    indent: Optional[int | str] = None,
     sort_keys: bool = False,
     default: Optional[Callable[[Any], Any]] = None,
 ) -> Path:
@@ -123,7 +123,7 @@ def write_json_sync(
     data: Any,
     encoding: str = 'utf-8',
     ensure_ascii: bool = False,
-    indent: int | str = 4,
+    indent: Optional[int | str] = None,
     sort_keys: bool = False,
     default: Optional[Callable[[Any], Any]] = None,
 ) -> Path:

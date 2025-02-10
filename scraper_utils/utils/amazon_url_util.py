@@ -43,8 +43,9 @@ def build_search_url(site: str, keyword: str, page: int = 1) -> str:
 
 def build_search_urls(site: str, keyword: str, max_page: int = 1) -> Generator[str, None, None]:
     """根据站点、关键词、最大页码构造多个关键词搜索页 url"""
-    for page in range(1, max_page + 1):
-        yield build_search_url(site=site, keyword=keyword, page=page)
+    # for page in range(1, max_page + 1):
+    #     yield build_search_url(site=site, keyword=keyword, page=page)
+    return (build_search_url(site=site, keyword=keyword, page=i) for i in range(1, max_page + 1))
 
 
 asin_pattern = _re.compile(r'^[A-Z0-9]{10}$')
