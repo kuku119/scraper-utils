@@ -170,13 +170,14 @@ async def stealth_page(
 async def create_new_page(
     stealth: bool = False,
     stealth_config: Optional[StealthConfig] = None,
+    **page_kwargs,
 ) -> PlaywrightPage:
     """创建一个新页面"""
     if __browser_launched is False:
         raise _BrowserClosedError('浏览器已经关闭或还未启动')
 
     if __browser is not None:
-        page: PlaywrightPage = await __browser.new_page()
+        page: PlaywrightPage = await __browser.new_page(**page_kwargs)
     if __persistent_browser is not None:
         page: PlaywrightPage = await __persistent_browser.new_page()
 
