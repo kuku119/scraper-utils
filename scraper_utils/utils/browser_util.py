@@ -71,17 +71,17 @@ async def launch_browser(
             async with _async_playwright() as pwr:
                 match browser_type:
                     case 'chromium':
-                        browser: PlaywrightBrowser = pwr.chromium.launch(
+                        browser: PlaywrightBrowser = await pwr.chromium.launch(
                             executable_path=executable_path,
                             **kwargs,
                         )
                     case 'firefox':
-                        browser: PlaywrightBrowser = pwr.firefox.launch(
+                        browser: PlaywrightBrowser = await pwr.firefox.launch(
                             executable_path=executable_path,
                             **kwargs,
                         )
                     case 'webkit':
-                        browser: PlaywrightBrowser = pwr.webkit.launch(
+                        browser: PlaywrightBrowser = await pwr.webkit.launch(
                             executable_path=executable_path,
                             **kwargs,
                         )
@@ -114,19 +114,19 @@ async def launch_persistent_browser(
             async with _async_playwright() as pwr:
                 match browser_type:
                     case 'chromium':
-                        browser_context: PlaywrightBrowserContext = pwr.chromium.launch_persistent_context(
+                        browser_context: PlaywrightBrowserContext = await pwr.chromium.launch_persistent_context(
                             user_data_dir=user_data_dir,
                             executable_path=executable_path,
                             **kwargs,
                         )
                     case 'firefox':
-                        browser_context: PlaywrightBrowserContext = pwr.firefox.launch_persistent_context(
+                        browser_context: PlaywrightBrowserContext = await pwr.firefox.launch_persistent_context(
                             user_data_dir=user_data_dir,
                             executable_path=executable_path,
                             **kwargs,
                         )
                     case 'webkit':
-                        browser_context: PlaywrightBrowserContext = pwr.webkit.launch_persistent_context(
+                        browser_context: PlaywrightBrowserContext = await pwr.webkit.launch_persistent_context(
                             user_data_dir=user_data_dir,
                             executable_path=executable_path,
                             **kwargs,
