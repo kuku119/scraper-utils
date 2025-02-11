@@ -51,7 +51,7 @@ async def search_favorite_listings(CWD: Path, json_save_dir: Path, target_rows: 
         search_url = build_search_url(keyword=keyword, page=1)
         logger.info(f'爬取关键词：[row] {keyword}')
 
-        page = await create_new_page(stealth=True, abort_resources=abort_resources)
+        page = await create_new_page(stealth_page=True, abort_resources=abort_resources)
         await page.goto(search_url, timeout=60 * MS1000)
 
         listings = await parse_favorite_listings(page=page)

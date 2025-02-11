@@ -20,7 +20,7 @@ if __name__ == '__main__':
             channel='chrome',
         )
         page = await create_new_page(
-            stealth=True,
+            stealth_page=True,
             # abort_resources=['image', 'media'],
             abort_resources=[ResourceType.IMAGE, ResourceType.MEDIA],
         )
