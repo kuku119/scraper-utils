@@ -46,7 +46,7 @@ async def search_favorite_listings(CWD: Path, json_save_dir: Path, target_rows: 
     workbook = await read_workbook_async(CWD.joinpath('temp/emag_keyword.xlsx'), read_only=True)
     worksheet = workbook.active
 
-    for row in target_rows:
+    for row in target_rows:  # 遍历标签表格
         keyword = str(worksheet.cell(row, 4).value)
         search_url = build_search_url(keyword=keyword, page=1)
         logger.info(f'爬取关键词：[row] {keyword}')
@@ -142,12 +142,32 @@ async def concat_favorite_listings(CWD: Path, json_save_dir: Path):
 
 async def search_keywords(CWD: Path):
     """用关键词去搜索产品"""
+    """
+    一个关键词对应若干个产品 url，
+    一条产品 url 对应一条产品信息，
+    
+    按关键词分文件夹，每个文件夹内放产品信息：
+    - keyword1
+        - item1
+        - item2
+    - keyword2
+        - item3
+        - item4
+    """
+
     # TODO
 
 
 async def parse_keyword_search_result(page: Page):
-    """解析关键词搜索结果页"""
-    # TODO
+    """解析关键词搜索页"""
+
+
+async def parse_product_detail(page: Page):
+    """解析产品详情页信息"""
+
+
+async def concat_keyword_search_result(CWD: Path):
+    """合并关键词搜索结果"""
 
 
 if __name__ == '__main__':
