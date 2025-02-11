@@ -11,6 +11,7 @@ from zipfile import ZipFile
 from loguru import logger
 from openpyxl.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
+from openpyxl.styles import Font, PatternFill
 from playwright.async_api import Page
 
 from scraper_utils.constants.time_constant import MS1000
@@ -42,7 +43,7 @@ async def parse_search(page: Page) -> list[str]:
         if perf_counter() - wheel_start_time >= 30:  # 30 秒后数量还不够，就有多少爬多少（有些关键词的搜索结果就那么多）
             break
 
-    logger.debug(f'定位到 {item_card_tag_count} 个 item_card_tags')
+    logger.debug(f'定位到 {item_card_tag_count} 个 item_card_tag')
     for item_card_tag in await item_card_tags_1.all() + await item_card_tags_2.all():
         top_favourite_tag = item_card_tag.locator(r'//span[text()="Top Favorite"]')
         if await top_favourite_tag.count() > 0:
@@ -51,7 +52,7 @@ async def parse_search(page: Page) -> list[str]:
                 item_title = await item_title_tag.inner_text(timeout=MS1000)
                 result.append(item_title)
 
-    logger.debug(f'总计找到符合的 {len(result)} 个 listing')
+    logger.debug(f'找到 {len(result)} 个符合条件的 listing')
     return result
 
 
@@ -72,7 +73,7 @@ async def scrape_search(CWD: Path, json_save_dir: Path, target_rows: list):
     for row in target_rows:
         keyword = str(worksheet.cell(row, 4).value)
         search_url = build_search_url(keyword=keyword, page=1)
-        logger.info(f'爬取关键词：{keyword}')
+        logger.info(f'爬取关键词：[row] {keyword}')
 
         page = await create_new_page(stealth=True, abort_resources=abort_resources)
         await page.goto(search_url, timeout=60 * MS1000)
@@ -87,7 +88,7 @@ async def scrape_search(CWD: Path, json_save_dir: Path, target_rows: list):
             indent=4,
         )
 
-        await asyncio.sleep(30 + 10 * uniform(0, 1))  # 30 秒的延时
+        await asyncio.sleep(randint(20, 40))  # 随机延时
         await page.close()
 
     await close_browser()
@@ -99,14 +100,35 @@ async def concat_search(CWD: Path, json_save_dir: Path):
 
     workbook.remove(workbook.active)  # 移除第一个的空 sheet
 
-    for json_file in json_save_dir.glob('*.json'):
+    red_bold_font = Font(color='FF0000', bold=True, size=12)
+    yellow_ground = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+
+    for i, json_file in enumerate(sorted(list(json_save_dir.glob('*.json')), key=lambda p: int(p.stem))):
+        sheet: Worksheet = workbook.create_sheet(title=json_file.stem, index=i + 1)
         data: dict[str, str | list[str]] = await read_json_async(file=json_file)
-        sheet: Worksheet = workbook.create_sheet(title=json_file.stem)
-        for index, product in enumerate(data['listings'], start=1):
-            sheet.cell(row=index, column=1, value=product)
+        keyword = data['keyword']
+        listings = data['listings']
+
+        sheet.column_dimensions['A'].width = 100
+        sheet.cell(1, 1, value=keyword)
+        sheet.cell(1, 1).font = red_bold_font
+        sheet.cell(1, 1).fill = yellow_ground
+
+        for row, product in enumerate(listings, start=2):
+            sheet.cell(row=row, column=1, value=product)
 
     result_path = await write_workbook_async(file=CWD.joinpath('temp/emag_listings.xlsx'), workbook=workbook)
     logger.success(f'程序结束，结果保存至：{result_path}')
+
+
+def backup_file(CWD: Path, json_save_dir: Path):
+    """把上一次爬取的 json 保存成 zip 文件"""
+    backup_json_files = list(_ for _ in json_save_dir.glob('*.json'))
+    if len(backup_json_files) > 0:
+        with ZipFile(CWD.joinpath(f'temp/emag_jsons/backup.{now_str('%Y%m%d_%H%M%S')}.zip'), 'w') as zfp:
+            for file in json_save_dir.glob('*.json'):
+                zfp.write(file, arcname=file.name)
+                file.unlink(missing_ok=True)
 
 
 if __name__ == '__main__':
@@ -118,18 +140,19 @@ if __name__ == '__main__':
     json_save_dir = CWD.joinpath('temp/emag_jsons')
 
     # 把上一次爬取的 json 保存成 zip 文件
-    backup_json_files = list(_ for _ in json_save_dir.glob('*.json'))
-    if len(backup_json_files) > 0:
-        with ZipFile(CWD.joinpath(f'temp/emag_jsons/backup.{now_str('%Y%m%d_%H%M%S')}.zip'), 'w') as zfp:
-            for file in json_save_dir.glob('*.json'):
-                zfp.write(file, arcname=file.name)
-                file.unlink(missing_ok=True)
+    # backup_json_files = list(_ for _ in json_save_dir.glob('*.json'))
+    # if len(backup_json_files) > 0:
+    #     with ZipFile(CWD.joinpath(f'temp/emag_jsons/backup.{now_str('%Y%m%d_%H%M%S')}.zip'), 'w') as zfp:
+    #         for file in json_save_dir.glob('*.json'):
+    #             zfp.write(file, arcname=file.name)
+    #             file.unlink(missing_ok=True)
 
     async def main():
-        try:
-            await scrape_search(CWD, json_save_dir=json_save_dir, target_rows=list(range(4, 62)))
-        except:
-            pass
+        # backup_file(CWD, json_save_dir=json_save_dir)
+        # try:
+        #     await scrape_search(CWD, json_save_dir=json_save_dir, target_rows=list(range(4, 62)))
+        # except:
+        #     pass
         await concat_search(CWD, json_save_dir=json_save_dir)
 
     asyncio.run(main())
