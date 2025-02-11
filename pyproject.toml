@@ -20,6 +20,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"
+loguru = "^0.7.3"
 
 
 [tool.poetry.group.test.dependencies]
