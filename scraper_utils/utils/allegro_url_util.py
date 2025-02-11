@@ -35,6 +35,8 @@ def build_search_url(keyword: str, page: int = 1) -> str:
     """根据关键词和页码构造搜索页 URL"""
     if page < 1:
         raise ValueError(f'page 必须大于 0，page={page}')
+    if keyword is None or len(keyword) == 0:
+        raise ValueError(f'keyword 不能为空')
 
     keyword = _quote_plus(keyword)
     if page == 1:
@@ -50,11 +52,15 @@ def build_search_urls(keyword: str, max_page: int = 1) -> Generator[str, None, N
 
 def build_shop_url(shop_name: str) -> str:
     """根据店铺名构造店铺 URL"""
+    if shop_name is None or len(shop_name) == 0:
+        raise ValueError(f'shop_name 不能为空')
     return f'{BASE_URL}/uzytkownik/{shop_name}/sklep'
 
 
 def build_product_url(product_id: str) -> str:
     """根据产品编号构造产品详情页 URL"""
+    if product_id is None or len(product_id) == 0:
+        raise ValueError(f'product_id 不能为空')
     return f'{BASE_URL}/oferta/{product_id}'
 
 
