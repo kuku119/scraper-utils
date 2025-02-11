@@ -35,6 +35,9 @@ __all__ = [
     'write_workbook',
     'write_workbook_async',
     'write_workbook_sync',
+    #
+    'string_column_to_integer_column',
+    'integer_column_to_string_column',
 ]
 
 
