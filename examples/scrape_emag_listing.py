@@ -22,37 +22,14 @@ from scraper_utils.utils.time_util import now_str
 from scraper_utils.utils.workbook_util import read_workbook_async, write_workbook_async
 
 
-async def parse_search(page: Page) -> list[str]:
-    """解析搜索页"""
-    logger.debug(f'解析：{page.url}')
-
-    result: list[str] = list()
-
-    wheel_start_time = perf_counter()
-    while True:  # 模拟鼠标滚轮向下滚动网页，直至 item_card_tag 数量达标或者时间超时
-        item_card_tags_1 = page.locator(r'//div[@class="card-item card-standard js-product-data js-card-clickable "]')
-        item_card_tags_2 = page.locator(r'//div[@class="card-item card-fashion js-product-data js-card-clickable"]')
-
-        item_card_tag_count = await item_card_tags_1.count() + await item_card_tags_2.count()
-        if item_card_tag_count >= 64:
-            break
-
-        await page.mouse.wheel(delta_y=randint(50, 150), delta_x=0)
-        await page.wait_for_timeout(uniform(0, 0.5) * MS1000)
-        if perf_counter() - wheel_start_time >= 30:  # 30 秒后数量还不够，就有多少爬多少（有些关键词的搜索结果就那么多）
-            break
-
-    logger.debug(f'定位到 {item_card_tag_count} 个 item_card_tag')
-    for item_card_tag in await item_card_tags_1.all() + await item_card_tags_2.all():
-        top_favourite_tag = item_card_tag.locator(r'//span[text()="Top Favorite"]')
-        if await top_favourite_tag.count() > 0:
-            item_title_tag = item_card_tag.locator(r'//a[@data-zone="title"]')
-            if await item_title_tag.count() > 0:
-                item_title = await item_title_tag.inner_text(timeout=MS1000)
-                result.append(item_title)
-
-    logger.debug(f'找到 {len(result)} 个符合条件的 listing')
-    return result
+def backup_file(CWD: Path, json_save_dir: Path):
+    """把上一次爬取的 json 保存成 zip 文件"""
+    backup_json_files = list(_ for _ in json_save_dir.glob('*.json'))
+    if len(backup_json_files) > 0:
+        with ZipFile(CWD.joinpath(f'temp/emag_jsons/backup.{now_str('%Y%m%d_%H%M%S')}.zip'), 'w') as zfp:
+            for file in json_save_dir.glob('*.json'):
+                zfp.write(file, arcname=file.name)
+                file.unlink(missing_ok=True)
 
 
 async def scrape_search(CWD: Path, json_save_dir: Path, target_rows: list):
@@ -93,6 +70,39 @@ async def scrape_search(CWD: Path, json_save_dir: Path, target_rows: list):
     await close_browser()
 
 
+async def parse_search(page: Page) -> list[str]:
+    """解析搜索页"""
+    logger.debug(f'解析：{page.url}')
+
+    result: list[str] = list()
+
+    wheel_start_time = perf_counter()
+    while True:  # 模拟鼠标滚轮向下滚动网页，直至 item_card_tag 数量达标或者时间超时
+        item_card_tags_1 = page.locator(r'//div[@class="card-item card-standard js-product-data js-card-clickable "]')
+        item_card_tags_2 = page.locator(r'//div[@class="card-item card-fashion js-product-data js-card-clickable"]')
+
+        item_card_tag_count = await item_card_tags_1.count() + await item_card_tags_2.count()
+        if item_card_tag_count >= 64:
+            break
+
+        await page.mouse.wheel(delta_y=randint(50, 150), delta_x=0)
+        await page.wait_for_timeout(uniform(0, 0.5) * MS1000)
+        if perf_counter() - wheel_start_time >= 30:  # 30 秒后数量还不够，就有多少爬多少（有些关键词的搜索结果就那么多）
+            break
+
+    logger.debug(f'定位到 {item_card_tag_count} 个 item_card_tag')
+    for item_card_tag in await item_card_tags_1.all() + await item_card_tags_2.all():
+        top_favourite_tag = item_card_tag.locator(r'//span[text()="Top Favorite"]')
+        if await top_favourite_tag.count() > 0:
+            item_title_tag = item_card_tag.locator(r'//a[@data-zone="title"]')
+            if await item_title_tag.count() > 0:
+                item_title = await item_title_tag.inner_text(timeout=MS1000)
+                result.append(item_title)
+
+    logger.debug(f'找到 {len(result)} 个符合条件的 listing')
+    return result
+
+
 async def concat_search(CWD: Path, json_save_dir: Path):
     """合并爬取结果"""
     red_bold_font = Font(color='FF0000', bold=True, size=14)  # 红字、加粗、14 号字
@@ -128,16 +138,6 @@ async def concat_search(CWD: Path, json_save_dir: Path):
 
     result_path = await write_workbook_async(file=CWD.joinpath('temp/emag_listings.xlsx'), workbook=workbook)
     logger.success(f'程序结束，结果保存至：{result_path}')
-
-
-def backup_file(CWD: Path, json_save_dir: Path):
-    """把上一次爬取的 json 保存成 zip 文件"""
-    backup_json_files = list(_ for _ in json_save_dir.glob('*.json'))
-    if len(backup_json_files) > 0:
-        with ZipFile(CWD.joinpath(f'temp/emag_jsons/backup.{now_str('%Y%m%d_%H%M%S')}.zip'), 'w') as zfp:
-            for file in json_save_dir.glob('*.json'):
-                zfp.write(file, arcname=file.name)
-                file.unlink(missing_ok=True)
 
 
 if __name__ == '__main__':
