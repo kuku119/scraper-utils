@@ -10,8 +10,7 @@ from zipfile import ZipFile
 
 from loguru import logger
 from openpyxl.workbook import Workbook
-from openpyxl.worksheet.worksheet import Worksheet
-from openpyxl.styles import Font, PatternFill
+from openpyxl.styles import Font, PatternFill, Alignment
 from playwright.async_api import Page
 
 from scraper_utils.constants.time_constant import MS1000
@@ -96,26 +95,36 @@ async def scrape_search(CWD: Path, json_save_dir: Path, target_rows: list):
 
 async def concat_search(CWD: Path, json_save_dir: Path):
     """合并爬取结果"""
+    red_bold_font = Font(color='FF0000', bold=True, size=14)  # 红字、加粗、14 号字
+    yellow_bg = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')  # 黄底
+    align = Alignment(wrap_text=True, horizontal='center', vertical='center')  # 居中、自动换行
+
     workbook = Workbook()
+    sheet = workbook.active
 
-    workbook.remove(workbook.active)  # 移除第一个的空 sheet
+    # 写入数据
+    files = sorted(list(json_save_dir.glob('*.json')), key=lambda p: int(p.stem))
+    for i, f in enumerate(files):
+        data: dict[str, str | list[str]] = await read_json_async(file=f)
+        keyword: str = data['keyword']
+        listings: list[str] = data['listings']
 
-    red_bold_font = Font(color='FF0000', bold=True, size=12)
-    yellow_ground = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+        sheet.cell(row=1, column=i + 1, value=keyword)
+        sheet.cell(row=1, column=i + 1).font = red_bold_font
+        sheet.cell(row=1, column=i + 1).fill = yellow_bg
 
-    for i, json_file in enumerate(sorted(list(json_save_dir.glob('*.json')), key=lambda p: int(p.stem))):
-        sheet: Worksheet = workbook.create_sheet(title=json_file.stem, index=i + 1)
-        data: dict[str, str | list[str]] = await read_json_async(file=json_file)
-        keyword = data['keyword']
-        listings = data['listings']
+        for row, listing in enumerate(listings, start=2):
+            sheet.cell(row=row, column=i + 1, value=listing)
 
-        sheet.column_dimensions['A'].width = 100
-        sheet.cell(1, 1, value=keyword)
-        sheet.cell(1, 1).font = red_bold_font
-        sheet.cell(1, 1).fill = yellow_ground
+    # 设置各列宽度为 50
+    for col in sheet.columns:
+        col_letter = col[0].column_letter
+        sheet.column_dimensions[col_letter].width = 30
 
-        for row, product in enumerate(listings, start=2):
-            sheet.cell(row=row, column=1, value=product)
+    # 设置各单元格居中
+    for row in sheet.iter_rows():
+        for cell in row:
+            cell.alignment = align
 
     result_path = await write_workbook_async(file=CWD.joinpath('temp/emag_listings.xlsx'), workbook=workbook)
     logger.success(f'程序结束，结果保存至：{result_path}')
@@ -132,27 +141,15 @@ def backup_file(CWD: Path, json_save_dir: Path):
 
 
 if __name__ == '__main__':
-    """
-    TODO: 需要添加更多功能
-    """
     CWD = Path.cwd()
-
     json_save_dir = CWD.joinpath('temp/emag_jsons')
 
-    # 把上一次爬取的 json 保存成 zip 文件
-    # backup_json_files = list(_ for _ in json_save_dir.glob('*.json'))
-    # if len(backup_json_files) > 0:
-    #     with ZipFile(CWD.joinpath(f'temp/emag_jsons/backup.{now_str('%Y%m%d_%H%M%S')}.zip'), 'w') as zfp:
-    #         for file in json_save_dir.glob('*.json'):
-    #             zfp.write(file, arcname=file.name)
-    #             file.unlink(missing_ok=True)
-
     async def main():
-        # backup_file(CWD, json_save_dir=json_save_dir)
-        # try:
-        #     await scrape_search(CWD, json_save_dir=json_save_dir, target_rows=list(range(4, 62)))
-        # except:
-        #     pass
+        backup_file(CWD, json_save_dir=json_save_dir)
+        try:
+            await scrape_search(CWD, json_save_dir=json_save_dir, target_rows=list(range(4, 62)))
+        except:
+            pass
         await concat_search(CWD, json_save_dir=json_save_dir)
 
     asyncio.run(main())
