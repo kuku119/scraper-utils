@@ -35,7 +35,7 @@ def build_search_url(keyword: str, page: int = 1) -> str:
     if page == 1:
         return f'{BASE_URL}/search/{keyword}'
     else:
-        raise RuntimeError('# TODO')
+        return f'{BASE_URL}/search/{keyword}/p{page}'
 
 
 def build_search_urls(keyword: str, max_page: int = 1) -> Generator[str, None, None]:
