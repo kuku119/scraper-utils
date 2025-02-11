@@ -2,10 +2,7 @@
 浏览器相关枚举
 """
 
-from enum import (
-    StrEnum as _StrEnum,
-    auto as _auto,
-)
+from enum import StrEnum as _StrEnum
 
 
 __all__ = [
@@ -14,16 +11,18 @@ __all__ = [
 
 
 class ResourceType(_StrEnum):
-    DOCUMENT = _auto()
-    STYLESHEET = _auto()
-    IMAGE = _auto()
-    MEDIA = _auto()
-    FONT = _auto()
-    SCRIPT = _auto()
-    TEXTTRACK = _auto()
-    XHR = _auto()
-    FETCH = _auto()
-    EVENTSOURCE = _auto()
-    WEBSOCKET = _auto()
-    MANIFEST = _auto()
-    OTHER = _auto()
+    """浏览器接收的资源类型"""
+
+    DOCUMENT = 'document'
+    STYLESHEET = 'stylesheet'
+    IMAGE = 'image'
+    MEDIA = 'media'
+    FONT = 'font'
+    SCRIPT = 'script'
+    TEXTTRACK = 'texttrack'
+    XHR = 'xhr'
+    FETCH = 'fetch'
+    EVENTSOURCE = 'eventsource'
+    WEBSOCKET = 'websocket'
+    MANIFEST = 'manifest'
+    OTHER = 'other'
