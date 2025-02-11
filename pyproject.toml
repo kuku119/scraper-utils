@@ -2,7 +2,7 @@
 name = "scraper-utils"
 version = "0.1.0"
 description = "爬虫所需工具"
-authors = [{ name = "Jiang", email = "jdtcty2002@163.com" }]
+authors = [{ name = "kk119", email = "jdtcty2002@163.com" }]
 requires-python = ">=3.13,<4.0"
 dependencies = [
     "aiofiles (>=24.1.0,<25.0.0)",
