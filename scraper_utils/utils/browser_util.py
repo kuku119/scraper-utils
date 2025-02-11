@@ -36,21 +36,6 @@ if TYPE_CHECKING:
     from ..enums.browser_enum import ResourceType
 
     StrOrPath = str | Path
-    # ResourceType = Literal[
-    #     'document',
-    #     'stylesheet',
-    #     'image',
-    #     'media',
-    #     'font',
-    #     'script',
-    #     'texttrack',
-    #     'xhr',
-    #     'fetch',
-    #     'eventsource',
-    #     'websocket',
-    #     'manifest',
-    #     'other',
-    # ]
 
 
 __all__ = [
@@ -90,6 +75,25 @@ async def launch_browser(
 ) -> PlaywrightBrowser:
     """
     启动非持久化浏览器
+
+    <b>程序结束前记得调用 `close_browser()` 关闭浏览器</b>
+
+    ---
+
+    1. `executable_path`: 浏览器可执行文件路径
+    2. `channel`: 浏览器类型
+    3. `headless`: 是否隐藏浏览器界面
+    4. `slow_mo`: 浏览器各项操作的时间间隔（毫秒）
+    5. `timeout`: 各项操作的超时时间（毫秒）
+    6. `args`: 浏览器启动参数，chrome 参照：
+    https://peter.sh/experiments/chromium-command-line-switches
+    7. `ignore_default_args`: 参照：
+    https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-option-ignore-default-args
+    8. `proxy`: 代理
+    9. `chromium_sandbox`: 是否启用 chromium 沙箱模式
+
+    其余参数参照：
+    https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch
     """
     global __browser_launched
     global __browser
@@ -125,6 +129,8 @@ async def launch_persistent_browser(
     user_data_dir: StrOrPath,
     executable_path: StrOrPath,
     channel: Literal['chromium', 'chrome', 'msedge'],
+    stealth_browser: bool = False,
+    abort_resources: Optional[Sequence[ResourceType]] = None,
     args: Optional[Sequence[str]] = None,
     ignore_default_args: Sequence[str] = ('--enable-automation',),
     slow_mo: float = 0,
@@ -138,6 +144,32 @@ async def launch_persistent_browser(
 ) -> PlaywrightBrowserContext:
     """
     启动持久化浏览器
+
+    <b>程序结束前记得调用 `close_browser()` 关闭浏览器</b>
+
+    ---
+
+    1. `user_data_dir`:
+    用户资料所在文件夹（如果设置的是相对路径，那是相对浏览器 exe 的路径，而不是相对当前工作目录）
+    2. `executable_path`: 浏览器可执行文件路径
+    3. `channel`: 浏览器类型
+    4. `stealth_browser`: 是否需要防爬虫检测
+    5. `abort_resources`: 要屏蔽的资源
+    6. `args`: 浏览器启动参数，chrome 参照：
+    https://peter.sh/experiments/chromium-command-line-switches
+    7. `ignore_default_args`: 参照：
+    https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context-option-ignore-default-args
+    8. `slow_mo`: 浏览器各项操作的时间间隔（毫秒）
+    9. `timeout`: 各项操作的超时时间（毫秒）
+    10. `headless`: 是否隐藏浏览器界面
+    11. `proxy`: 代理
+    12. `no_viewport：参照：`
+    https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context-option-no-viewport
+    13. `user_agent`: User-Agent
+    14. `chromium_sandbox`: 是否启用 chromium 沙箱模式
+
+    其余参数参照：
+    https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context
     """
     global __browser_launched
     global __persistent_browser
@@ -164,6 +196,15 @@ async def launch_persistent_browser(
                 chromium_sandbox=chromium_sandbox,
                 **kwargs,
             )
+
+            if stealth_browser:  # 防爬虫检测
+                await _stealth_async(page=browser)
+
+            if abort_resources is not None:  # 屏蔽特定资源
+                await browser.route(
+                    '**/*',
+                    lambda r: r.abort() if r.request.resource_type in abort_resources else r.continue_(),
+                )
 
             __playwright = pwr
             __persistent_browser = browser
@@ -198,22 +239,45 @@ async def close_browser() -> None:
 async def stealth_page(
     page: PlaywrightPage,
     stealth_config: Optional[StealthConfig] = None,
-) -> None:
-    """防爬虫检测"""
+) -> PlaywrightPage:
+    """
+    防爬虫检测
+
+    ---
+
+    1. `page`: 浏览器页面
+    2. `stealth_config`: 防爬虫检测的相关设置
+    """
     await _stealth_async(page, stealth_config)
+    return page
 
 
 async def create_new_page(
-    stealth: bool = False,
+    stealth_page: bool = False,
     stealth_config: Optional[StealthConfig] = None,
     abort_resources: Optional[Sequence[ResourceType]] = None,
     no_viewport: bool = True,
     **page_kwargs,
 ) -> PlaywrightPage:
-    """创建一个新页面"""
+    """
+    创建一个新页面
+
+    ---
+
+    1. `stealth_page`: 页面是否需要防爬虫检测
+    2. `stealth_config`: 防爬虫检测的相关设置
+    3. `abort_resources`: 页面需要屏蔽的资源，参照 `enums.browser_enum.ResourceType`
+    4. `no_viewport`: 非持久浏览器才有效
+
+    `page_kwargs` 仅在非持久浏览器才有效
+
+    其余参数参照：
+    https://playwright.dev/python/docs/api/class-browser#browser-new-page
+    """
     if __browser_launched is False:
         raise _BrowserClosedError('浏览器已经关闭或还未启动')
 
+    # 判断当前启动的是持久浏览器还是非持久浏览器
     if __browser is not None:
         page: PlaywrightPage = await __browser.new_page(
             no_viewport=no_viewport,
@@ -224,10 +288,10 @@ async def create_new_page(
     else:
         raise _BrowserClosedError('没有已经启动的浏览器')
 
-    if stealth is True:
+    if stealth_page is True:  # 防爬虫检测
         await stealth_page(page=page, stealth_config=stealth_config)
 
-    if abort_resources is not None:
+    if abort_resources is not None:  # 屏蔽特定资源
         await page.route(
             '**/*',
             lambda r: r.abort() if r.request.resource_type in abort_resources else r.continue_(),
