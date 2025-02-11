@@ -12,9 +12,13 @@ if TYPE_CHECKING:
     from typing import Generator
 
 __all__ = [
+    #
     'BASE_URL',
+    #
     'build_search_url',
     'build_search_urls',
+    #
+    'build_product_url',
 ]
 
 BASE_URL = 'https://www.emag.ro'
