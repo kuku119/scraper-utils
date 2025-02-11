@@ -22,7 +22,7 @@ from scraper_utils.utils.time_util import now_str
 from scraper_utils.utils.workbook_util import read_workbook_async, write_workbook_async
 
 
-def backup_file(CWD: Path, json_save_dir: Path):
+def backup_past_file(CWD: Path, json_save_dir: Path):
     """把上一次爬取的 json 保存成 zip 文件"""
     backup_json_files = list(_ for _ in json_save_dir.glob('*.json'))
     if len(backup_json_files) > 0:
@@ -32,8 +32,8 @@ def backup_file(CWD: Path, json_save_dir: Path):
                 file.unlink(missing_ok=True)
 
 
-async def scrape_search(CWD: Path, json_save_dir: Path, target_rows: list):
-    """爬取并单独保存成 json 文件"""
+async def search_favorite_listings(CWD: Path, json_save_dir: Path, target_rows: list):
+    """用标签搜索产品"""
     await launch_persistent_browser(
         executable_path=r'C:\Program Files\Google\Chrome\Application\chrome.exe',
         user_data_dir=Path.cwd().joinpath('temp/chrome_data'),
@@ -54,7 +54,7 @@ async def scrape_search(CWD: Path, json_save_dir: Path, target_rows: list):
         page = await create_new_page(stealth=True, abort_resources=abort_resources)
         await page.goto(search_url, timeout=60 * MS1000)
 
-        listings = await parse_search(page=page)
+        listings = await parse_favorite_listings(page=page)
         await write_json_async(
             file=json_save_dir.joinpath(f'{row}.json'),
             data={
@@ -70,8 +70,8 @@ async def scrape_search(CWD: Path, json_save_dir: Path, target_rows: list):
     await close_browser()
 
 
-async def parse_search(page: Page) -> list[str]:
-    """解析搜索页"""
+async def parse_favorite_listings(page: Page) -> list[str]:
+    """解析搜索页上的带 Top favorite 的 listing"""
     logger.debug(f'解析：{page.url}')
 
     result: list[str] = list()
@@ -103,8 +103,8 @@ async def parse_search(page: Page) -> list[str]:
     return result
 
 
-async def concat_search(CWD: Path, json_save_dir: Path):
-    """合并爬取结果"""
+async def concat_favorite_listings(CWD: Path, json_save_dir: Path):
+    """合并 Top favorite 的爬取结果"""
     red_bold_font = Font(color='FF0000', bold=True, size=14)  # 红字、加粗、14 号字
     yellow_bg = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')  # 黄底
     align = Alignment(wrap_text=True, horizontal='center', vertical='center')  # 居中、自动换行
@@ -140,16 +140,26 @@ async def concat_search(CWD: Path, json_save_dir: Path):
     logger.success(f'程序结束，结果保存至：{result_path}')
 
 
+async def search_keywords(CWD: Path):
+    """用关键词去搜索产品"""
+    # TODO
+
+
+async def parse_keyword_search_result(page: Page):
+    """解析关键词搜索结果页"""
+    # TODO
+
+
 if __name__ == '__main__':
     CWD = Path.cwd()
     json_save_dir = CWD.joinpath('temp/emag_jsons')
 
     async def main():
-        backup_file(CWD, json_save_dir=json_save_dir)
+        backup_past_file(CWD, json_save_dir=json_save_dir)
         try:
-            await scrape_search(CWD, json_save_dir=json_save_dir, target_rows=list(range(4, 62)))
+            await search_favorite_listings(CWD, json_save_dir=json_save_dir, target_rows=list(range(4, 62)))
         except:
             pass
-        await concat_search(CWD, json_save_dir=json_save_dir)
+        await concat_favorite_listings(CWD, json_save_dir=json_save_dir)
 
     asyncio.run(main())
