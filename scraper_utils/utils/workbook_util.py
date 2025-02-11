@@ -14,6 +14,7 @@ from .file_util import (
     read_bytes as _read_bytes,
     write_bytes as _write_bytes,
 )
+from .text_util import is_letter as _is_letter
 
 if TYPE_CHECKING:
     from pathlib import Path as _Path
@@ -105,3 +106,30 @@ def write_workbook_sync(
     workbook_bytes = _BytesIO()
     workbook.save(workbook_bytes)
     return _write_bytes(file=file, data=workbook_bytes.getvalue(), async_mode=False)
+
+
+def string_column_to_integer_column(column_name: str) -> int:
+    """字母形式的列名转成数字形式的列号"""
+    if not _is_letter(column_name) or len(column_name) > 3:
+        raise ValueError(f'"{column_name}" 不符合列名规范')
+
+    result = 0
+    for c in column_name:
+        result = result * 26 + (ord(c.upper()) - ord('A') + 1)
+
+    if result > 16384:
+        raise ValueError(f'"{column_name}" 超出列名范围 "A" <= column_name <= "XFD"')
+
+    return result
+
+
+def integer_column_to_string_column(column_index: int) -> str:
+    """数字形式的列号转成字母形式的列名"""
+    if 1 <= column_index <= 16384:
+        result = ''
+        while column_index > 0:
+            column_index -= 1
+            result = chr(column_index % 26 + ord('A')) + result
+            column_index //= 26
+        return result
+    raise ValueError(f'"{column_index}" 超出列号范围 1 <= column_index <= 16384')
