@@ -74,7 +74,7 @@ async def launch_browser(
     **kwargs,
 ) -> PlaywrightBrowser:
     """
-    启动非持久化浏览器
+    启动非持久化浏览器（浏览器为全局单例）
 
     <b>程序结束前记得调用 `close_browser()` 关闭浏览器</b>
 
@@ -94,6 +94,10 @@ async def launch_browser(
 
     其余参数参照：
     https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch
+
+    ---
+
+    如果已经启动其它浏览器，将会抛出 `BrowserLaunchedError` 异常
     """
     global __browser_launched
     global __browser
@@ -143,7 +147,7 @@ async def launch_persistent_browser(
     **kwargs,
 ) -> PlaywrightBrowserContext:
     """
-    启动持久化浏览器
+    启动持久化浏览器（浏览器为全局单例）
 
     <b>程序结束前记得调用 `close_browser()` 关闭浏览器</b>
 
@@ -170,6 +174,10 @@ async def launch_persistent_browser(
 
     其余参数参照：
     https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context
+
+    ---
+
+    如果已经启动其它浏览器，将会抛出 `BrowserLaunchedError` 异常
     """
     global __browser_launched
     global __persistent_browser

@@ -29,7 +29,11 @@ __all__ = [
 ]
 
 
-def build_search_url(site: str, keyword: str, page: int = 1) -> str:
+def build_search_url(
+    site: str,
+    keyword: str,
+    page: int = 1,
+) -> str:
     """根据站点、关键词、页码构造关键词搜索页 url"""
     if page < 1:
         raise ValueError(f'page 必须大于 0，page={page}')
@@ -43,7 +47,11 @@ def build_search_url(site: str, keyword: str, page: int = 1) -> str:
         return AmazonSite.get_url(site=site) + '/s?k=' + keyword + '&page=' + str(page)
 
 
-def build_search_urls(site: str, keyword: str, max_page: int = 1) -> Generator[str, None, None]:
+def build_search_urls(
+    site: str,
+    keyword: str,
+    max_page: int = 1,
+) -> Generator[str, None, None]:
     """根据站点、关键词、最大页码构造多个关键词搜索页 url"""
     return (build_search_url(site=site, keyword=keyword, page=i) for i in range(1, max_page + 1))
 
@@ -58,7 +66,10 @@ def is_asin(asin: str) -> bool:
     return asin_pattern.match(asin) is not None
 
 
-def build_detail_url(site: str, asin: str) -> str:
+def build_detail_url(
+    site: str,
+    asin: str,
+) -> str:
     """根据站点、ASIN 构造产品详情页 url"""
     if is_asin(asin):
         return AmazonSite.get_url(site=site) + '/dp/' + asin

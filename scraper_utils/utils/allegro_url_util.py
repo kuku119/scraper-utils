@@ -31,7 +31,10 @@ BASE_URL = 'https://allegro.pl'
 __clean_product_id_pattern = _re.compile(r'oferta/[a-zA-Z0-9-]*?(\d{11})')
 
 
-def build_search_url(keyword: str, page: int = 1) -> str:
+def build_search_url(
+    keyword: str,
+    page: int = 1,
+) -> str:
     """根据关键词和页码构造搜索页 URL"""
     if page < 1:
         raise ValueError(f'page 必须大于 0，page={page}')
@@ -45,7 +48,10 @@ def build_search_url(keyword: str, page: int = 1) -> str:
         return f'{BASE_URL}/listing?string={keyword}&p={page}'
 
 
-def build_search_urls(keyword: str, max_page: int = 1) -> Generator[str, None, None]:
+def build_search_urls(
+    keyword: str,
+    max_page: int = 1,
+) -> Generator[str, None, None]:
     """根据关键词和页码构造搜索页 URL"""
     return (build_search_url(keyword=keyword, page=i) for i in range(1, max_page + 1))
 

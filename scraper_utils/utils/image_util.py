@@ -39,7 +39,11 @@ def read_image(
     file: StrOrPath,
     async_mode: bool,
 ):
-    """读取图片文件"""
+    """
+    读取图片文件
+
+    通用的读取图片文件的方法，可选择同步还是异步
+    """
     if async_mode:
         return read_image_async(file=file)
     else:
@@ -64,7 +68,11 @@ def write_image(
     image: PIL_Image,
     async_mode: bool,
 ):
-    """写入图片文件"""
+    """
+    写入图片文件
+
+    通用的写入图片文件的方法，可选择同步还是异步
+    """
     if async_mode:
         return write_image_async(file=file, image=image)
     else:

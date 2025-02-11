@@ -41,7 +41,11 @@ def read_json(
     async_mode: bool,
     encoding: str = 'utf-8',
 ):
-    """读取 JSON 文件"""
+    """
+    读取 JSON 文件
+
+    通用的读取 JSON 文件的方法，可选择同步还是异步
+    """
     if async_mode:
         return read_json_async(file=file, encoding=encoding)
     else:
@@ -75,7 +79,11 @@ def write_json(
     sort_keys: bool = False,
     default: Optional[Callable[[Any], Any]] = None,
 ):
-    """写入 JSON 文件"""
+    """
+    写入 JSON 文件
+
+    通用的写入 JSON 文件的方法，可选择同步还是异步
+    """
     if async_mode:
         return write_json_async(
             file=file,
