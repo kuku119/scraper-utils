@@ -144,7 +144,7 @@ async def launch_persistent_browser(
     user_data_dir: StrOrPath,
     executable_path: StrOrPath,
     channel: Literal['chromium', 'chrome', 'msedge'],
-    stealth_browser: bool = False,
+    stealth: bool = False,
     abort_resources: Optional[Sequence[ResourceType]] = None,
     args: Optional[Sequence[str]] = None,
     ignore_default_args: Sequence[str] = ('--enable-automation',),
@@ -169,7 +169,7 @@ async def launch_persistent_browser(
     用户资料所在文件夹（如果设置的是相对路径，那是相对浏览器 exe 的路径，而不是相对当前工作目录）
     2. `executable_path`: 浏览器可执行文件路径
     3. `channel`: 浏览器类型
-    4. `stealth_browser`: 是否需要防爬虫检测
+    4. `stealth`: 是否需要防爬虫检测
     5. `abort_resources`: 要屏蔽的资源
     6. `args`: 浏览器启动参数，chrome 参照：
     https://peter.sh/experiments/chromium-command-line-switches
@@ -227,7 +227,7 @@ async def launch_persistent_browser(
                 **kwargs,
             )
 
-            if stealth_browser:  # 防爬虫检测
+            if stealth:  # 防爬虫检测
                 await _stealth_async(page=browser)
 
             if abort_resources is not None:  # 屏蔽特定资源
@@ -283,7 +283,7 @@ async def stealth_page(
 
 
 async def create_new_page(
-    stealth_page: bool = False,
+    stealth: bool = False,
     stealth_config: Optional[StealthConfig] = None,
     abort_resources: Optional[Sequence[ResourceType]] = None,
     no_viewport: bool = True,
@@ -294,7 +294,7 @@ async def create_new_page(
 
     ---
 
-    1. `stealth_page`: 页面是否需要防爬虫检测
+    1. `stealth`: 页面是否需要防爬虫检测
     2. `stealth_config`: 防爬虫检测的相关设置
     3. `abort_resources`: 页面需要屏蔽的资源，参照 `enums.browser_enum.ResourceType`
     4. `no_viewport`: 非持久浏览器才有效
@@ -318,7 +318,7 @@ async def create_new_page(
     else:
         raise _BrowserClosedError('没有已经启动的浏览器')
 
-    if stealth_page is True:  # 防爬虫检测
+    if stealth is True:  # 防爬虫检测
         await stealth_page(page=page, stealth_config=stealth_config)
 
     if abort_resources is not None:  # 屏蔽特定资源
