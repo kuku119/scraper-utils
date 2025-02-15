@@ -4,6 +4,7 @@ Emag URL 相关工具
 
 from __future__ import annotations
 
+import re as _re
 from typing import TYPE_CHECKING
 from urllib.parse import quote_plus as _quote_plus
 
@@ -54,3 +55,11 @@ def build_product_url(product_id: str):
     if product_id is None or len(product_id) == 0:
         raise ValueError('product_id 不能为空')
     return f'https://www.emag.ro/-/pd/{product_id}'
+
+
+product_image_url_pattern = _re.compile(r'(.*?/images/res_[0-9a-zA-Z]+\.[a-zA-Z]{3})\??')
+
+
+def clean_product_image_url(url: str):
+    """清理产品图 url，返回原图 url"""
+    return product_image_url_pattern.match(url).group(1)
