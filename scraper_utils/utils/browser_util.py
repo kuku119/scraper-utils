@@ -71,6 +71,7 @@ async def launch_browser(
     ignore_default_args: Sequence[str] = ('--enable-automation',),
     proxy: Optional[ProxySettings] = None,
     chromium_sandbox: bool = False,
+    ignore_launched: bool = False,
     **kwargs,
 ) -> PlaywrightBrowser:
     """
@@ -91,6 +92,7 @@ async def launch_browser(
     https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-option-ignore-default-args
     8. `proxy`: 代理
     9. `chromium_sandbox`: 是否启用 chromium 沙箱模式
+    10. `ignore_launched`: 是否忽略浏览器已经启动
 
     其余参数参照：
     https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch
@@ -104,8 +106,17 @@ async def launch_browser(
     global __playwright
 
     async with __lock:
-        if __browser_launched is True and __browser is None:
-            raise _BrowserLaunchedError('不要在已经启动了持久化浏览器的情况下启动非持久化浏览器')
+        if __browser_launched is True:
+            # 在浏览器已经启动的情况下：
+            # 如果启动的是持久浏览器就抛出异常；
+            # 如果启动的是非持久浏览器，就根据 ignore_launched 决定是抛出异常，还是直接返回浏览器实例。
+            if __browser is not None:
+                if ignore_launched:
+                    return __browser
+                else:
+                    raise _BrowserLaunchedError('不要在已经启动浏览器的情况下再次启动')
+            if __persistent_browser is not None:
+                raise _BrowserLaunchedError('不要在已经启动了持久化浏览器的情况下启动非持久化浏览器')
 
         if __browser_launched is False:
             pwr = await _async_playwright().start()
@@ -144,6 +155,7 @@ async def launch_persistent_browser(
     no_viewport: bool = True,
     user_agent: Optional[str] = None,
     chromium_sandbox: bool = False,
+    ignore_launched: bool = False,
     **kwargs,
 ) -> PlaywrightBrowserContext:
     """
@@ -171,6 +183,7 @@ async def launch_persistent_browser(
     https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context-option-no-viewport
     13. `user_agent`: User-Agent
     14. `chromium_sandbox`: 是否启用 chromium 沙箱模式
+    15. `ignore_launched`: 是否忽略浏览器已经启动
 
     其余参数参照：
     https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context
@@ -184,8 +197,17 @@ async def launch_persistent_browser(
     global __playwright
 
     async with __lock:
-        if __browser_launched is True and __persistent_browser is None:
-            raise _BrowserLaunchedError('不要在已经启动了非持久化浏览器的情况下启动持久化浏览器')
+        if __browser_launched is True:
+            # 在浏览器已经启动的情况下：
+            # 如果启动的是非持久浏览器就抛出异常；
+            # 如果启动的是持久浏览器，就根据 ignore_launched 决定是抛出异常，还是直接返回浏览器实例。
+            if __persistent_browser is not None:
+                if ignore_launched is True:
+                    return __persistent_browser
+                else:
+                    raise _BrowserLaunchedError('不要在已经启动浏览器的情况下再次启动')
+            if __browser is not None:
+                raise _BrowserLaunchedError('不要在已经启动了非持久化浏览器的情况下启动持久化浏览器')
 
         if __browser_launched is False:
             pwr = await _async_playwright().start()
