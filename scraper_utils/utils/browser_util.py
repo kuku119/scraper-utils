@@ -14,6 +14,7 @@ from ..constants.time_constant import MS1000
 from ..exceptions.browser_exception import (
     BrowserLaunchedError as _BrowserLaunchedError,
     BrowserClosedError as _BrowserClosedError,
+    StealthError as _StealthError,
 )
 
 if TYPE_CHECKING:
@@ -205,6 +206,9 @@ async def launch_persistent_browser(
 
             if stealth:  # 防爬虫检测
                 await _stealth_async(page=browser)
+                browser.stealthed = True
+            else:
+                browser.stealthed = False
 
             if abort_resources is not None:  # 屏蔽特定资源
                 await browser.route(
@@ -256,7 +260,13 @@ async def stealth_page(
     1. `page`: 浏览器页面
     2. `stealth_config`: 防爬虫检测的相关设置
     """
-    await _stealth_async(page, stealth_config)
+
+    if getattr(page, 'stealthed', False) is True:
+        raise _StealthError('该页面已经隐藏')
+    else:
+        await _stealth_async(page, stealth_config)
+        page.stealthed = True
+
     return page
 
 

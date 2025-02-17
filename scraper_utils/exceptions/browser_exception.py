@@ -28,3 +28,9 @@ class BrowserClosedError(BaseBrowserError):
     """浏览器已经关闭或还未启动时的异常"""
 
     pass
+
+
+class StealthError(BaseBrowserError):
+    """尝试隐藏页面时的异常"""
+
+    pass
