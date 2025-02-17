@@ -15,6 +15,7 @@ from ..exceptions.browser_exception import (
     BrowserLaunchedError as _BrowserLaunchedError,
     BrowserClosedError as _BrowserClosedError,
     StealthError as _StealthError,
+    PlaywrightError as _PlaywrightError,
 )
 
 if TYPE_CHECKING:
@@ -233,19 +234,22 @@ async def close_browser() -> None:
     global __playwright
 
     async with __lock:
-        if __browser_launched is False:
-            raise _BrowserClosedError('浏览器已经关闭或还未启动')
+        try:
+            if __browser_launched is False:
+                raise _BrowserClosedError('浏览器已经关闭或还未启动')
 
-        if __browser is not None:
-            await __browser.close()
+            if __browser is not None:
+                await __browser.close()
 
-        if __persistent_browser is not None:
-            await __persistent_browser.close()
+            if __persistent_browser is not None:
+                await __persistent_browser.close()
 
-        if __playwright is not None:
-            await __playwright.stop()
-
-        __browser_launched = False
+            if __playwright is not None:
+                await __playwright.stop()
+        except _PlaywrightError:
+            pass
+        finally:
+            __browser_launched = False
 
 
 async def stealth_page(
