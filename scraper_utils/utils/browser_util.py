@@ -41,17 +41,13 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    #
     'MS1000',
-    #
     'launch_browser',
     'launch_persistent_browser',
-    #
     'close_browser',
-    #
     'create_new_page',
-    #
     'stealth_page',
+    'open_url',
 ]
 
 __lock = _asyncio.Lock()
@@ -320,3 +316,13 @@ async def create_new_page(
         )
 
     return page
+
+
+async def open_url(page: PlaywrightPage, url: str):
+    """
+    打开目标 url
+
+    ---
+
+    # TODO 1. 超时重试 2. 检测响应是否正常
+    """
