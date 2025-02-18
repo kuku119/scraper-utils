@@ -152,4 +152,5 @@ def insert_image(
     image_bytes_io = _BytesIO()
     image.save(image_bytes_io, format=image_format)
     column = column if isinstance(column, str) else integer_column_to_string_column(column_index=column)
+    image_bytes_io.seek(0)
     sheet.add_image(image_bytes_io, f'{column}{row}')
