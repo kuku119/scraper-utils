@@ -3,12 +3,12 @@
 """
 
 import asyncio
-from asyncio.locks import Semaphore
+import re
+from asyncio import Semaphore
 from asyncio.exceptions import CancelledError
 from dataclasses import dataclass, field
 from pathlib import Path
 from random import randint, uniform
-import re
 from re import Pattern
 from time import perf_counter
 from typing import Optional, Self, Sequence
@@ -38,6 +38,7 @@ from scraper_utils.utils.workbook_util import (
     insert_image,
 )
 
+cur_work_dir = Path().cwd()
 
 product_image_ext_pattern = re.compile(r'/images/[0-9a-z_]+\.([a-z]+)')  # 获取图片拓展名
 
@@ -49,6 +50,11 @@ class ItemCardParseResult:
     image_url: Optional[str] = None  # 产品图 url
     review_count: Optional[int] = None  # 评论数
     price: Optional[float] = None  # 价格
+    #
+    __url: Optional[str] = None
+    __origin_image_url: Optional[str] = None
+    __image_ext: Optional[str] = None
+    __image_save_path: Optional[Path] = None
 
     def __hash__(self):
         return hash(self.pnk)
@@ -103,7 +109,7 @@ class ItemCardParseResult:
             return self.__image_save_path
 
         if self.image_ext is not None:
-            self.__image_save_path = cwd.joinpath(f'temp/emag_product_images/{self.pnk}.{self.image_ext}')
+            self.__image_save_path = cur_work_dir.joinpath(f'temp/emag_product_images/{self.pnk}.{self.image_ext}')
             return self.__image_save_path
 
         return None
@@ -194,7 +200,7 @@ async def start_scrape(cwd: Path, target_rows: Sequence[int]):
 
             ##########
 
-            # TODO 应该把下面这部分的提取成单独的方法
+            # TODO 应该把这个保存单个关键词的爬取结果的部分提取成单独的方法
 
             # 每爬完一个关键词就写入一个工作表
             one_keyword_result_sheet: Worksheet = result_workbook.create_sheet(
@@ -221,6 +227,8 @@ async def start_scrape(cwd: Path, target_rows: Sequence[int]):
                 one_keyword_result_sheet.column_dimensions[col].width = int(120 / 7)  # 16.04 字符 ≈ 100 磅
 
             ##########
+
+            # TODO 应该把这个下载产品图的部分提取成单独的方法
 
             # 并发下载产品图
             download_product_image_semaphore = Semaphore(8)  # 并发数限制
@@ -263,7 +271,7 @@ async def start_scrape(cwd: Path, target_rows: Sequence[int]):
 
                     # 检查图片是否存在，存在则插入到工作表
                     if path_exists(pr.image_save_path):
-                        one_keyword_result_sheet.row_dimensions[result_row].height = int(120 * 0.75)
+                        one_keyword_result_sheet.row_dimensions[str(result_row)].height = int(120 * 0.75)
 
                         product_image = await read_image_async(file=pr.image_save_path)
                         product_image = resize_image(image=product_image, height=120, width=120)
@@ -401,6 +409,11 @@ async def parse_search_page(
     return result
 
 
+async def download_keyword_images():
+    """下载单个关键词的产品图到本地"""
+    # TODO
+
+
 async def save_keyword_result_to_sheet():
     """保存单个关键词的爬取结果到工作表中"""
     # TODO
@@ -416,7 +429,7 @@ async def download_product_image_task(
     """并发下载单个 sheet 内的全部产品图"""
     if path_exists(path=save_path):
         # logger.debug(f'产品图已存在 "{save_path}"')
-        return
+        pass
     else:
         async with semaphore:
             # logger.debug(f'下载产品图 "{image_url}"')
@@ -439,20 +452,18 @@ async def download_product_image_task(
 
 
 if __name__ == '__main__':
-    cwd = Path().cwd()
-
     async def main():
         start_time = perf_counter()
         logger.info('程序启动')
 
-        abort_res: tuple[ResourceType, ...] = (
+        abort_res: Sequence[ResourceType] = (
             ResourceType.MEDIA,
             ResourceType.IMAGE,
             ResourceType.STYLESHEET,
             ResourceType.FONT,
         )
         await launch_persistent_browser(
-            user_data_dir=cwd.joinpath('temp/chrome_data'),
+            user_data_dir=cur_work_dir.joinpath('temp/chrome_data'),
             executable_path=r'C:\Program Files\Google\Chrome\Application\chrome.exe',
             channel='chrome',
             # headless=False,
@@ -462,7 +473,7 @@ if __name__ == '__main__':
         )
 
         target_rows = list(range(106, 149 + 1))
-        await start_scrape(cwd=cwd, target_rows=target_rows)
+        await start_scrape(cwd=cur_work_dir, target_rows=target_rows)
 
         await close_browser()
 
