@@ -8,7 +8,8 @@ from io import BytesIO as _BytesIO
 from typing import TYPE_CHECKING
 from warnings import deprecated as _deprecated
 
-from openpyxl import load_workbook
+from openpyxl.reader.excel import load_workbook
+from openpyxl.drawing.image import Image as _OpenpyxlImage
 
 from .file_util import (
     read_bytes as _read_bytes,
@@ -145,7 +146,7 @@ def insert_image(
     sheet: Worksheet,
     image: PillowImage,
     row: int,
-    column: int | str,
+    column: str | int,
     image_format: str = 'jpeg',
 ) -> None:
     """往特定单元格插入 Pillow 图片"""
@@ -153,4 +154,4 @@ def insert_image(
     image.save(image_bytes_io, format=image_format)
     column = column if isinstance(column, str) else integer_column_to_string_column(column_index=column)
     image_bytes_io.seek(0)
-    sheet.add_image(image_bytes_io, f'{column}{row}')
+    sheet.add_image(_OpenpyxlImage(image_bytes_io), f'{column}{row}')
