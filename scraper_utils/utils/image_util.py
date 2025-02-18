@@ -17,6 +17,7 @@ from .file_util import (
 )
 
 if TYPE_CHECKING:
+    from typing import Optional
     from PIL.Image import Image as PIL_Image
 
     StrOrPath = str | _Path
@@ -31,6 +32,8 @@ __all__ = [
     'write_image',
     'write_image_async',
     'write_image_sync',
+    #
+    'resize_image',
 ]
 
 
@@ -109,3 +112,22 @@ def write_image_sync(
     image_bytes_fp = _BytesIO()
     image.save(image_bytes_fp, format=image_format)
     return _write_bytes(file=file, data=image_bytes_fp.getvalue(), replace=True, async_mode=False)
+
+
+def resize_image(
+    image: PIL_Image,
+    width: int,
+    height: int,
+    resample: Optional[int] = None,
+    box: Optional[tuple[float, float, float, float]] = None,
+    reducing_gap: Optional[float] = None,
+) -> PIL_Image:
+    """重新设置图片大小"""
+    if width <= 0 or height <= 0:
+        raise ValueError('图片的宽度和高度都必须大于 0')
+    return image.resize(
+        size=(width, height),
+        resample=_PIL_Image_Module.Resampling.LANCZOS if resample is None else resample,
+        box=box,
+        reducing_gap=reducing_gap,
+    )
