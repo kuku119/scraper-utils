@@ -19,7 +19,9 @@ from .text_util import is_letter as _is_letter
 if TYPE_CHECKING:
     from pathlib import Path as _Path
 
-    from openpyxl import Workbook
+    from openpyxl.workbook import Workbook
+    from openpyxl.worksheet.worksheet import Worksheet
+    from PIL.Image import Image as PillowImage
 
     StrOrPath = str | _Path
 
@@ -38,6 +40,7 @@ __all__ = [
     #
     'string_column_to_integer_column',
     'integer_column_to_string_column',
+    'insert_image',
 ]
 
 
@@ -136,3 +139,17 @@ def integer_column_to_string_column(column_index: int) -> str:
             column_index //= 26
         return result
     raise ValueError(f'"{column_index}" 超出列号范围 1 <= column_index <= 16384')
+
+
+def insert_image(
+    sheet: Worksheet,
+    image: PillowImage,
+    row: int,
+    column: int | str,
+    image_format: str = 'jpeg',
+) -> None:
+    """往特定单元格插入 Pillow 图片"""
+    image_bytes_io = _BytesIO()
+    image.save(image_bytes_io, format=image_format)
+    column = column if isinstance(column, str) else integer_column_to_string_column(column_index=column)
+    sheet.add_image(image_bytes_io, f'{column}{row}')
