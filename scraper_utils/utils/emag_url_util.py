@@ -55,7 +55,7 @@ def validate_pnk(pnk: str) -> bool:
 def build_product_url(pnk: str) -> str:
     """构造产品页 url"""
     if not validate_pnk(pnk=pnk):
-        raise ValueError('product_id 不能为空')
+        raise ValueError('pnk 不能为空')
     return f'{BASE_URL}/-/pd/{pnk}'
 
 
