@@ -36,7 +36,7 @@ asyncio_default_fixture_loop_scope = "session"
 
 [tool.black]
 skip-string-normalization = true
-line-length = 120
+line-length = 100
 
 
 [tool.poetry]
