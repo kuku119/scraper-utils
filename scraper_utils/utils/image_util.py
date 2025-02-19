@@ -9,7 +9,7 @@ from pathlib import Path as _Path
 from typing import TYPE_CHECKING
 from warnings import deprecated as _deprecated
 
-from PIL import Image as _PIL_Image_Module
+from PIL import Image as _PillowImageModule
 
 from .file_util import (
     read_bytes as _read_bytes,
@@ -18,7 +18,7 @@ from .file_util import (
 
 if TYPE_CHECKING:
     from typing import Optional
-    from PIL.Image import Image as PIL_Image
+    from PIL.Image import Image as PillowImage
 
     StrOrPath = str | _Path
 
@@ -53,22 +53,22 @@ def read_image(
         return read_image(file=file)
 
 
-async def read_image_async(file: StrOrPath) -> PIL_Image:
+async def read_image_async(file: StrOrPath) -> PillowImage:
     """异步读取图片文件"""
     file_bytes = await _read_bytes(file=file, async_mode=True)
-    return _PIL_Image_Module.open(_BytesIO(file_bytes))
+    return _PillowImageModule.open(_BytesIO(file_bytes))
 
 
-def read_image_sync(file: StrOrPath) -> PIL_Image:
+def read_image_sync(file: StrOrPath) -> PillowImage:
     """同步读取图片文件"""
     file_bytes = _read_bytes(file=file, async_mode=False)
-    return _PIL_Image_Module.open(_BytesIO(file_bytes))
+    return _PillowImageModule.open(_BytesIO(file_bytes))
 
 
 @_deprecated('更推荐使用具体的 write_image_async 或 write_image_sync')
 def write_image(
     file: StrOrPath,
-    image: PIL_Image,
+    image: PillowImage,
     async_mode: bool,
 ):
     """
@@ -84,7 +84,7 @@ def write_image(
 
 async def write_image_async(
     file: StrOrPath,
-    image: PIL_Image,
+    image: PillowImage,
 ) -> _Path:
     """异步写入图片文件"""
     file = _Path(file)
@@ -100,7 +100,7 @@ async def write_image_async(
 
 def write_image_sync(
     file: StrOrPath,
-    image: PIL_Image,
+    image: PillowImage,
 ) -> _Path:
     """同步写入图片文件"""
     file = _Path(file)
@@ -115,19 +115,19 @@ def write_image_sync(
 
 
 def resize_image(
-    image: PIL_Image,
+    image: PillowImage,
     width: int,
     height: int,
     resample: Optional[int] = None,
     box: Optional[tuple[float, float, float, float]] = None,
     reducing_gap: Optional[float] = None,
-) -> PIL_Image:
+) -> PillowImage:
     """重新设置图片大小"""
     if width <= 0 or height <= 0:
         raise ValueError('图片的宽度和高度都必须大于 0')
     return image.resize(
         size=(width, height),
-        resample=_PIL_Image_Module.Resampling.LANCZOS if resample is None else resample,
+        resample=_PillowImageModule.Resampling.LANCZOS if resample is None else resample,
         box=box,
         reducing_gap=reducing_gap,
     )
