@@ -27,6 +27,7 @@ class CardItem:
         self,
         pnk: str,
         title: str,
+        top_favorite: bool = False,
         image_url: Optional[str] = None,
         review_count: Optional[int] = None,
         rating: Optional[float] = None,
@@ -36,6 +37,7 @@ class CardItem:
             raise ValueError(f'"{pnk}" 不符合 pnk 格式')
         self.pnk = pnk  # 产品编号
         self.title = title  # 产品名
+        self.top_favorite = top_favorite  # 产品是否带有 Top Favorite 标志
         self.image_url = image_url  # 产品图链接（可能是略缩图）
         self.review_count = review_count  # 评价数
         self.rating = rating  # 星级
@@ -75,20 +77,6 @@ class CardItem:
                 return None
             self.__image_ext: str = image_ext_match.group(1)
         return self.__image_ext
-
-    def as_dict(self) -> dict[str, str | int | float | None]:
-        """转成字典"""
-        return {
-            'pnk': self.pnk,
-            'url': self.url,
-            'title': self.title,
-            'image_url': self.image_url,
-            'origin_image_url': self.origin_image_url,
-            'image_ext': self.image_ext,
-            'review_count': self.review_count,
-            'rating': self.rating,
-            'price': self.price,
-        }
 
     def __repr__(self):
         return f'{self.__class__.__name__}("{self.pnk}", "{self.title}", "{self.url}")'
