@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 
     from playwright.async_api import Page
 
+    from ....models.emag_models.search_page import KeywordResults, CardItem
+
 __all__ = [
     'data_url_pnk_pattern',
     'parse_search',
@@ -32,11 +34,9 @@ data_url_pnk_pattern = re.compile(r'/pd/([0-9A-Z]{9})(/|$)')
 async def parse_search(page: Page):
     """
     解析 Emag 的搜索页
-
-    ---
-
-    # TODO 能解析出什么数据？
     """
+
+    # TODO
 
     # 模拟鼠标滚轮向下滚动网页，直至 item_card_tag 数量达标或者时间超时
     timeout_time = 10  # 超时为 10 秒
@@ -58,9 +58,6 @@ async def parse_search(page: Page):
             break
 
     for item_card_tag in await item_card_tags.all():
-        # 存放单个 item-card 解析到的产品数据
-        # TODO 能解析出什么数据？
-        card_item_result = None
 
         data_url: str = await item_card_tag.get_attribute('data-url', timeout=MS1000)
         pnk_match = data_url_pnk_pattern.search(data_url)
@@ -69,12 +66,6 @@ async def parse_search(page: Page):
             pnk: str = pnk_match.group(1)
             if not validate_pnk(pnk=pnk):
                 # 解析不到合法的 pnk 就跳过
-                continue
-
-            # 产品详情页 url
-            product_url = build_product_url(pnk=pnk)
-            if len(product_url) == 0:
-                # 解析不到合法的产品 url 就跳过
                 continue
 
             # 产品名
@@ -86,6 +77,18 @@ async def parse_search(page: Page):
                 continue
             product_title = await product_title_tag.inner_text(timeout=MS1000)
 
+            # 存放单个 item-card 解析到的产品数据
+            card_item = CardItem(
+                pnk=pnk,
+                title=product_title,
+            )
+
+            # 产品详情页 url
+            product_url = build_product_url(pnk=pnk)
+            if len(product_url) == 0:
+                # 解析不到合法的产品 url 就跳过
+                continue
+
             # 产品图
             product_image_url: Optional[str] = None
             product_image_tag = item_card_tag.locator(
@@ -96,6 +99,7 @@ async def parse_search(page: Page):
                 product_image_url = await product_image_tag.get_attribute('src', timeout=MS1000)
             if product_image_url is not None:
                 product_image_url = clean_product_image_url(url=product_image_url)
+            card_item.image_url = product_image_url
 
             # Top Favorite 标志
 
