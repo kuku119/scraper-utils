@@ -11,6 +11,7 @@ from playwright.async_api import async_playwright as _async_playwright
 from playwright_stealth import stealth_async as _stealth_async
 
 from ..constants.time_constant import MS1000
+from ..enums.browser_enum import ResourceType
 from ..exceptions.browser_exception import (
     BrowserLaunchedError as _BrowserLaunchedError,
     BrowserClosedError as _BrowserClosedError,
@@ -35,13 +36,12 @@ if TYPE_CHECKING:
     from playwright._impl._api_structures import ProxySettings
     from playwright_stealth import StealthConfig
 
-    from ..enums.browser_enum import ResourceType
-
     StrOrPath = str | Path
 
 
 __all__ = [
     'MS1000',
+    'ResourceType',
     'launch_browser',
     'launch_persistent_browser',
     'close_browser',
@@ -210,7 +210,9 @@ async def launch_persistent_browser(
             if abort_resources is not None:  # 屏蔽特定资源
                 await browser.route(
                     '**/*',
-                    lambda r: r.abort() if r.request.resource_type in abort_resources else r.continue_(),
+                    lambda r: (
+                        r.abort() if r.request.resource_type in abort_resources else r.continue_()
+                    ),
                 )
 
             __playwright = pwr

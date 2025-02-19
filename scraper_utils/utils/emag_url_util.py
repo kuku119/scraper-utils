@@ -13,15 +13,11 @@ if TYPE_CHECKING:
     from typing import Generator
 
 __all__ = [
-    #
     'BASE_URL',
-    #
     'build_search_url',
     'build_search_urls',
-    #
     'validate_pnk',
     'build_product_url',
-    #
     'clean_product_image_url',
 ]
 

@@ -13,14 +13,10 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    #
     'BASE_URL',
-    #
     'build_search_url',
     'build_search_urls',
-    #
     'build_shop_url',
-    #
     'build_product_url',
     'clean_product_id',
 ]
