@@ -9,9 +9,10 @@ from typing import TYPE_CHECKING
 from urllib.parse import quote_plus as _quote_plus
 
 from ..enums.amazon_enum import AmazonSite
+from .text_util import is_number as _is_number
 
 if TYPE_CHECKING:
-    from typing import Generator
+    from typing import Generator, Optional
 
 
 __all__ = [
@@ -20,11 +21,12 @@ __all__ = [
     'build_search_url',
     'build_search_urls',
     'build_detail_url',
+    'build_bsr_url',
     'clean_product_image_url',
 ]
 
 
-def build_search_url(site: str, keyword: str, page: int = 1) -> str:
+def build_search_url(site: str, keyword: str, page: int = 1, language: Optional[str] = None) -> str:
     """根据站点、关键词、页码构造关键词搜索页 url"""
     if page < 1:
         raise ValueError(f'page 必须大于 0，page={page}')
@@ -32,10 +34,12 @@ def build_search_url(site: str, keyword: str, page: int = 1) -> str:
         raise ValueError(f'keyword 不能为空')
 
     keyword = _quote_plus(keyword)
-    if page == 1:
-        return AmazonSite.get_url(site=site) + '/s?k=' + keyword
-    else:
-        return AmazonSite.get_url(site=site) + '/s?k=' + keyword + '&page=' + str(page)
+    result = (
+        f'{AmazonSite.get_url(site=site)}/s?k={keyword}'
+        if page == 1
+        else f'{AmazonSite.get_url(site=site)}/s?k={keyword}&page={page}'
+    )
+    return result if language is None else result + f'&language={language}'
 
 
 def build_search_urls(site: str, keyword: str, max_page: int = 1) -> Generator[str, None, None]:
@@ -53,11 +57,26 @@ def validate_asin(asin: str) -> bool:
     return __asin_pattern.match(asin) is not None
 
 
-def build_detail_url(site: str, asin: str) -> str:
+def build_detail_url(site: str, asin: str, language: Optional[str] = None) -> str:
     """根据站点、ASIN 构造产品详情页 url"""
     if validate_asin(asin):
-        return AmazonSite.get_url(site=site) + '/dp/' + asin
-    raise ValueError(f'ASIN {asin} is not valid')
+        if language is None:
+            return f'{AmazonSite.get_url(site=site)}/dp/{asin}'
+        return f'{AmazonSite.get_url(site=site)}/-/{language}/dp/{asin}'
+    raise ValueError(f'"{asin}" 不符合 ASIN 规范')
+
+
+def build_bsr_url(site: str, node: str, language: Optional[str] = None) -> str:
+    """根据站点、BSR 节点构造 BSR url"""
+    if _is_number(s=node):
+        # TODO 到底要怎么拼接 bsr 链接？
+        # return f'{AmazonSite.get_url(site=site)}/-/zgbs/-/{node}'
+        # return f'{AmazonSite.get_url(site=site)}/-/en/gp/bestsellers/-/{node}'
+        if language is None:
+            return f'{AmazonSite.get_url(site=site)}/bestsellers/-/{node}'
+        else:
+            return f'{AmazonSite.get_url(site=site)}/-/{language}/bestsellers/-/{node}'
+    raise ValueError(f'"{node}" 不符合节点规范')
 
 
 def clean_product_image_url(url: str) -> str:
