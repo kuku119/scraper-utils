@@ -1,4 +1,6 @@
-"""解析 Emag 的搜索页"""
+"""
+Emag 的搜索页面的解析器
+"""
 
 from __future__ import annotations
 
@@ -7,8 +9,8 @@ import re
 import time
 from typing import TYPE_CHECKING
 
-from ....constants.time_constant import MS1000
-from ....utils.emag_url_util import (
+from ...constants.time_constant import MS1000
+from ...utils.emag_url_util import (
     validate_pnk,
     build_product_url,
     clean_product_image_url,
@@ -19,7 +21,7 @@ if TYPE_CHECKING:
 
     from playwright.async_api import Page
 
-    from ....models.emag_models.search_page import KeywordResults, CardItem
+    from ...models.emag_models.search_page import KeywordResults, CardItem
 
 __all__ = [
     'data_url_pnk_pattern',
