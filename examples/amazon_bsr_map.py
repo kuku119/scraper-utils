@@ -11,14 +11,17 @@ import time
 from typing import Generator, Iterable, Optional
 
 from loguru import logger
+from openpyxl.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 from playwright.async_api import Page
 
 from scraper_utils.constants.time_constant import MS1000
 from scraper_utils.enums.browser_enum import ResourceType
+from scraper_utils.exceptions.browser_exception import PlaywrightError
 from scraper_utils.utils.amazon_url_util import (
     build_bsr_url,
     build_detail_url,
+    build_new_releases_url,
     build_search_url,
     validate_asin,
 )
@@ -27,7 +30,11 @@ from scraper_utils.utils.browser_util import (
     create_new_page,
     close_browser,
 )
-from scraper_utils.utils.workbook_util import read_workbook_sync
+from scraper_utils.utils.other_util import any_none
+from scraper_utils.utils.workbook_util import (
+    read_workbook_sync,
+    write_workbook_sync,
+)
 
 
 logger.remove()
@@ -42,69 +49,127 @@ logger.add(
 
 cur_work_dir = Path.cwd()
 
+# 从 BSR 链接中提取 BSR 品类节点的正则表达式
+bsr_url_node_pattern = re.compile(r'/(\d+)($|/|/ref)')
 
-def load_bsr_url(workbook_path: Path, target_rows: Iterable[int]) -> Generator[tuple[int, str]]:
+
+def load_bsr_url(workbook_path: Path, target_rows: Iterable[int]) -> Generator[str]:
     """读取表格，生成需要爬取的 bsr 链接"""
+    logger.info(f'读取表格 "{workbook_path}"')
+
     workbook = read_workbook_sync(file=workbook_path, read_only=True)
     sheet: Worksheet = workbook.active
     for row in target_rows:
-        bsr_url: Optional[str] = sheet.cell(row=row, column=3).value
+        de_bsr_url: Optional[str] = sheet[f'C{row}'].value
 
-        # 如果该行数据为空或者不是 url 格式，就跳过
-        if bsr_url is None or not bsr_url.startswith('http'):
+        if de_bsr_url is None:  # 如果为空就跳过该行
             continue
 
-        logger.debug(f'读取表格第 {row} 行的 BSR 链接 "{bsr_url}"')
-        yield row, bsr_url
+        yield de_bsr_url
 
 
 async def start_scrape(cwd: Path):
     """"""
     target_rows = range(2, 10)  # 目标行
-    for row, bsr_url in load_bsr_url(cwd.joinpath('temp/类目对应bsr.xlsx'), target_rows):
-        # 解析 bsr 页
-        bsr_page = await create_new_page()
-        await bsr_page.goto(bsr_url, timeout=60 * MS1000)
-        bsr_category = await parse_bsr_page(bsr_page)
-        await bsr_page.close()
 
-        await asyncio.sleep(10 + random.uniform(0, 10))  # 随机等待 10-20 秒
+    # 存储结果用的工作簿
+    result_workbook = Workbook()
+    result_sheet: Worksheet = result_workbook.active
 
-        # 如果解析到的 BSR 类目为空，就跳过
-        if bsr_category is None:
-            logger.warning(f'解析到的 BSR 品类为空')
-            continue
+    # 创建标题行
+    result_sheet['A1'] = '德国品类名'
+    result_sheet['B1'] = '德国 BSR 链接'
+    result_sheet['C1'] = '德国新品链接'
+    result_sheet['D1'] = '美国品类名'
+    result_sheet['E1'] = '美国 BSR 链接'
+    result_sheet['F1'] = '美国新品链接'
 
-        # 解析搜索页
-        category_search_url = build_search_url(site='us', keyword=bsr_category, language='en')
-        search_page = await create_new_page()
-        await search_page.goto(category_search_url, timeout=60 * MS1000)
-        first_search_asin = await parse_search_page(search_page)
-        await search_page.close()
+    try:
+        for row, origin_bsr_url in enumerate(
+            load_bsr_url(cwd.joinpath('temp/类目对应bsr.xlsx'), target_rows), start=2
+        ):
+            logger.debug(f'正在处理第 {row} 行')
+            try:
 
-        await asyncio.sleep(10 + random.uniform(0, 10))  # 随机等待 10-20 秒
+                # 解析 bsr 页
+                bsr_page = await create_new_page()
+                await bsr_page.goto(origin_bsr_url, timeout=60 * MS1000)
+                origin_category = await parse_bsr_page(bsr_page)
+                await bsr_page.close()
 
-        # 如果解析到的 ASIN 为空，就跳过
-        if first_search_asin is None:
-            logger.warning('解析到的 ASIN 为空')
-            continue
+                await asyncio.sleep(10 + random.uniform(0, 10))  # 随机等待 10-20 秒
 
-        # 解析详情页
-        detail_url = build_detail_url(site='us', asin=first_search_asin, language='en')
-        detail_page = await create_new_page()
-        await detail_page.goto(detail_url, timeout=60 * MS1000)
-        bsr_url_node = await parse_detail_page(detail_page)
-        await detail_page.close()
+                # 如果解析到的 BSR 类目为空，就跳过
+                if origin_category is None:
+                    logger.warning(f'解析到的 BSR 品类为空')
+                    continue
 
-        await asyncio.sleep(10 + random.uniform(0, 10))  # 随机等待 10-20 秒
+                # 解析搜索页
+                category_search_url = build_search_url(
+                    site='us', keyword=origin_category, language='en'
+                )
+                search_page = await create_new_page()
+                await search_page.goto(category_search_url, timeout=60 * MS1000)
+                first_search_asin = await parse_search_page(search_page)
+                await search_page.close()
 
-        # 如果解析到的 BSR 品类节点为空就跳过
-        if bsr_url_node is None:
-            logger.warning('解析到的 BSR 品类节点为空')
-            continue
+                await asyncio.sleep(10 + random.uniform(0, 10))  # 随机等待 10-20 秒
 
-        result_bsr_url = build_bsr_url(site='us', node=bsr_url_node, language='en')
-        logger.success(f'找到 BSR 品类链接 "{result_bsr_url}"')
+                # 如果解析到的 ASIN 为空，就跳过
+                if first_search_asin is None:
+                    logger.warning('解析到的 ASIN 为空')
+                    continue
+
+                # 解析详情页
+                detail_url = build_detail_url(site='us', asin=first_search_asin, language='en')
+                detail_page = await create_new_page()
+                await detail_page.goto(detail_url, timeout=60 * MS1000)
+                target_category, target_node = await parse_detail_page(detail_page)
+                await detail_page.close()
+
+                await asyncio.sleep(10 + random.uniform(0, 10))  # 随机等待 10-20 秒
+
+            except PlaywrightError as pe:
+                logger.error(pe)
+
+            else:
+
+                # 如果解析到的 BSR 品类节点为空就跳过
+                if target_node is None:
+                    logger.warning('解析到的 BSR 品类节点为空')
+                    continue
+
+                target_bsr_url = build_bsr_url(site='us', node=target_node, language='en')
+                logger.success(f'找到 BSR 品类链接 "{target_bsr_url}"')
+
+                origin_category
+                origin_bsr_url
+                origin_new_url = None
+                origin_bsr_node_match = bsr_url_node_pattern.search(origin_bsr_url)
+                if origin_bsr_node_match is not None:
+                    origin_new_url = build_new_releases_url(
+                        site='de', node=origin_bsr_node_match.group(1), language='en'
+                    )
+
+                target_category
+                target_bsr_url
+                target_new_url = build_new_releases_url(site='us', node=target_node, language='en')
+
+                result_sheet[f'A{row}'] = origin_category
+                result_sheet[f'B{row}'] = origin_bsr_url
+                result_sheet[f'C{row}'] = origin_new_url
+                result_sheet[f'D{row}'] = target_category
+                result_sheet[f'E{row}'] = target_bsr_url
+                result_sheet[f'F{row}'] = target_new_url
+
+            finally:
+                await asyncio.sleep(10 + random.uniform(0, 10))  # 随机等待 10-20 秒
+
+    finally:
+        result_path = write_workbook_sync(
+            file=cwd.joinpath('temp/类目对应bsr_结果.xlsx'), workbook=result_workbook
+        )
+        logger.success(f'爬取结果已保存至 "{result_path}"')
 
 
 async def parse_bsr_page(page: Page) -> Optional[str]:
@@ -128,7 +193,7 @@ async def parse_bsr_page(page: Page) -> Optional[str]:
 
 
 async def parse_search_page(page: Page) -> Optional[str]:
-    """解析搜索页，拿到产品 asin"""
+    """解析搜索页，拿到第一个搜索结果的产品 asin"""
     logger.debug(f'解析搜索页 "{page.url}"')
 
     listitem_tag = page.locator('//div[@role="listitem" and @data-asin!=""]')
@@ -148,15 +213,12 @@ async def parse_search_page(page: Page) -> Optional[str]:
     return None
 
 
-async def parse_detail_page(page: Page) -> Optional[str]:
+async def parse_detail_page(page: Page) -> tuple[str, str] | tuple[None, None]:
     """解析产品详情页，拿到该产品的 bsr 链接"""
     logger.debug(f'解析详情页 "{page.url}"')
 
     # 匹配 Best Sellers Rank 的表头的正则表达式
     bsr_table_head_pattern = re.compile(r'Best Sellers Rank')
-
-    # 从 BSR 链接中提取 BSR 品类节点的正则表达式
-    bsr_url_node_pattern = re.compile(r'/(\d+)(/|/ref)')
 
     # Product information
     productDetails_th_tags = (
@@ -175,58 +237,51 @@ async def parse_detail_page(page: Page) -> Optional[str]:
 
                 if bsr_url is None:  # 理论上不需要判断为空
                     logger.warning(f'找到 BSR 品类 "{bsr_category}" 但 href 属性为空')
-                    return None
+                    return None, None
 
                 bsr_url_node_match = bsr_url_node_pattern.search(bsr_url)
                 if bsr_url_node_match is None:
                     logger.debug(
                         f'找到 BSR 品类 "{bsr_category}" "{bsr_url}" 但正则表达式匹配不到品类节点'
                     )
-                    return None
+                    return None, None
 
                 bsr_url_node: str = bsr_url_node_match.group(1)
-                logger.debug(f'正则表达式匹配到 BSR 品类 "{bsr_category}" 的节点 "{bsr_url_node}"')
-                return bsr_url_node
+                logger.debug(f'找到 BSR 品类 "{bsr_category}" 的节点 "{bsr_url_node}"')
+                return bsr_category, bsr_url_node
 
-    # # Product details
-    # detailBulletsWrapper_div_tags = (
-    #     await page.locator(
-    #         '#detailBulletsWrapper_feature_div>#detailBullets_feature_div>ul>li>span .a-text-bold'
-    #     ).all()
-    #     + await page.locator('#detailBulletsWrapper_feature_div>ul>li>span .a-text-bold').all()
-    # )
+    # Product details
+    detailBulletsWrapper_span_tags = (
+        await page.locator(
+            '#detailBulletsWrapper_feature_div>#detailBullets_feature_div>ul>li>span .a-text-bold'
+        ).all()
+        + await page.locator('#detailBulletsWrapper_feature_div>ul>li>span .a-text-bold').all()
+    )
+    for detailBulletsWrapper_span_tag in detailBulletsWrapper_span_tags:
+        span_text = await detailBulletsWrapper_span_tag.inner_text(timeout=MS1000)
+        if bsr_table_head_pattern.search(span_text) is not None:
+            bsr_url_a_tags = detailBulletsWrapper_span_tag.locator('xpath=/parent::*//a[@href!=""]')
+            if await bsr_url_a_tags.count() > 0:
+                bsr_category = await bsr_url_a_tags.last.inner_text(timeout=MS1000)
+                bsr_url = await bsr_url_a_tags.last.get_attribute('href', timeout=MS1000)
 
-    # # 遍历 Product information 和 Product details 的所有表头标签
-    # product_detail_table_head_tags = productDetails_th_tags + detailBulletsWrapper_div_tags
-    # for product_detail_table_head_tag in product_detail_table_head_tags:
+                if bsr_url is None:  # 理论上不需要判断为空
+                    logger.warning(f'找到 BSR 品类 "{bsr_category}" 但 href 属性为空')
+                    return None, None
 
-    #     product_detail_table_head = await product_detail_table_head_tag.inner_text(timeout=MS1000)
+                bsr_url_node_match = bsr_url_node_pattern.search(bsr_url)
+                if bsr_url_node_match is None:
+                    logger.debug(
+                        f'找到 BSR 品类 "{bsr_category}" "{bsr_url}" 但正则表达式匹配不到品类节点'
+                    )
+                    return None, None
 
-    #     if bsr_table_head_pattern.search(product_detail_table_head) is not None:
-    #         logger.debug(f'找到表头 "Best Sellers Rank"')
+                bsr_url_node: str = bsr_url_node_match.group(1)
+                logger.debug(f'找到 BSR 品类 "{bsr_category}" 的节点 "{bsr_url_node}"')
+                return bsr_category, bsr_url_node
 
-    #         bsr_url_a_tags = product_detail_table_head_tag.locator('//a[@href!=""]')
-    #         bsr_url_a_tags_count = await bsr_url_a_tags.count()
-
-    #         for bsr_url_a_tag in await bsr_url_a_tags.all():
-    #             bsr_url = await bsr_url_a_tag.last.get_attribute('href')
-
-    #             logger.debug(f'{await bsr_url_a_tag.last.inner_text(timeout=MS1000)}')
-
-    #             if bsr_url is None:  # 理论上不需要判断为空
-    #                 logger.warning('解析到的 href 属性为空')
-    #                 continue
-
-    #             bsr_url_node_match = bsr_url_node_pattern.search(bsr_url)
-    #             if bsr_url_node_match is None:
-    #                 logger.warning(f'正则表达式匹配不到 BSR 品类节点 "{bsr_url}"')
-    #                 continue
-
-    #             bsr_url_node: str = bsr_url_node_match.group(1)
-    #             logger.debug(f'找到 BSR 品类节点 "{bsr_url_node}"')
-    #             return bsr_url_node
-    # logger.warning('找不到 BSR 品类节点')
-    # return None
+    logger.warning('找不到 BSR 品类')
+    return None, None
 
 
 if __name__ == '__main__':
@@ -259,8 +314,8 @@ if __name__ == '__main__':
         )
         ##########
 
-        # await start_scrape(cwd=cur_work_dir)
-        await test()
+        await start_scrape(cwd=cur_work_dir)
+        # await test()
 
         ##########
         await close_browser()
