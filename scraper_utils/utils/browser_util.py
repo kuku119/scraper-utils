@@ -56,7 +56,7 @@ __browser_launched = False
 
 __playwright: Optional[Playwright] = None
 __browser: Optional[PlaywrightBrowser] = None  # 非持久浏览器
-__persistent_browser: Optional[PlaywrightBrowserContext] = None  # 持久浏览器上下文
+__persistent_context: Optional[PlaywrightBrowserContext] = None  # 持久浏览器上下文
 
 
 async def launch_browser(
@@ -178,14 +178,14 @@ async def launch_persistent_browser(
     如果已经启动其它浏览器，将会抛出 `BrowserLaunchedError` 异常
     """
     global __browser_launched
-    global __persistent_browser
+    global __persistent_context
     global __playwright
 
     async with __lock:
         # 在浏览器已经启动就抛出异常
         if __browser_launched is False:
             pwr = await _async_playwright().start()
-            browser: PlaywrightBrowserContext = await pwr.chromium.launch_persistent_context(
+            context = await pwr.chromium.launch_persistent_context(
                 user_data_dir=user_data_dir,
                 executable_path=executable_path,
                 channel=channel,
@@ -202,13 +202,10 @@ async def launch_persistent_browser(
             )
 
             if stealth:  # 防爬虫检测
-                await _stealth_async(page=browser)
-                browser.stealthed = True
-            else:
-                browser.stealthed = False
+                await stealth_context(context=context)
 
             if abort_resources is not None:  # 屏蔽特定资源
-                await browser.route(
+                await context.route(
                     '**/*',
                     lambda r: (
                         r.abort() if r.request.resource_type in abort_resources else r.continue_()
@@ -216,10 +213,10 @@ async def launch_persistent_browser(
                 )
 
             __playwright = pwr
-            __persistent_browser = browser
+            __persistent_context = context
             __browser_launched = True
 
-            return __persistent_browser
+            return __persistent_context
 
         raise _BrowserLaunchedError('不要在已经启动浏览器的情况下再次启动')
 
@@ -228,7 +225,7 @@ async def close_browser() -> None:
     """关闭浏览器"""
     global __browser_launched
     global __browser
-    global __persistent_browser
+    global __persistent_context
     global __playwright
 
     async with __lock:
@@ -239,8 +236,8 @@ async def close_browser() -> None:
             if __browser is not None:
                 await __browser.close()
 
-            if __persistent_browser is not None:
-                await __persistent_browser.close()
+            if __persistent_context is not None:
+                await __persistent_context.close()
 
             if __playwright is not None:
                 await __playwright.stop()
@@ -270,6 +267,28 @@ async def stealth_page(
         page.stealthed = True
 
     return page
+
+
+async def stealth_context(
+    context: PlaywrightBrowserContext,
+    stealth_config: Optional[StealthConfig] = None,
+) -> PlaywrightBrowserContext:
+    """
+    防爬虫检测
+
+    ---
+
+    1. `context`: 浏览器上下文
+    2. `stealth_config`: 防爬虫检测的相关设置
+    """
+
+    if getattr(context, 'stealthed', False) is True:
+        raise _StealthError('该浏览器上下文已经隐藏')
+    else:
+        await _stealth_async(context, stealth_config)
+        context.stealthed = True
+
+    return context
 
 
 async def create_new_page(
@@ -303,8 +322,8 @@ async def create_new_page(
             no_viewport=no_viewport,
             **page_kwargs,
         )
-    elif __persistent_browser is not None:
-        page: PlaywrightPage = await __persistent_browser.new_page()
+    elif __persistent_context is not None:
+        page: PlaywrightPage = await __persistent_context.new_page()
     else:
         raise _BrowserClosedError('没有已经启动的浏览器')
 
