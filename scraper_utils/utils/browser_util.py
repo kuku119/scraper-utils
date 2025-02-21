@@ -4,7 +4,7 @@ Playwright 浏览器相关工具
 
 from __future__ import annotations
 
-from contextlib import AbstractAsyncContextManager
+from asyncio.locks import Lock as _Lock
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -14,8 +14,8 @@ from playwright_stealth import stealth_async as _stealth_async
 from ..constants.time_constant import MS1000
 from ..enums.browser_enum import ResourceType
 from ..exceptions.browser_exception import (
-    BrowserLaunchedError as _BrowserLaunchedError,
     BrowserClosedError as _BrowserClosedError,
+    BrowserLaunchedError as _BrowserLaunchedError,
     StealthError as _StealthError,
 )
 
@@ -25,6 +25,7 @@ if TYPE_CHECKING:
         Literal,
         Iterable,
         Sequence,
+        Self,
     )
 
     from playwright.async_api import (
@@ -32,8 +33,8 @@ if TYPE_CHECKING:
         Browser as PlaywrightBrowser,
         Page as PlaywrightPage,
         Playwright,
+        ProxySettings,
     )
-    from playwright._impl._api_structures import ProxySettings
 
     StrOrPath = str | Path
 
@@ -57,8 +58,11 @@ __all__ = [
     'abort_resources',
 ]
 
+# 启动和关闭持久上下文时用到的异步锁
+_persistent_context_lock = _Lock()
 
-class BrowserManager(AbstractAsyncContextManager):
+
+class BrowserManager:
     """
     启动非持久化浏览器
 
@@ -165,7 +169,7 @@ class BrowserManager(AbstractAsyncContextManager):
         await self.close()
 
 
-class PersistentContextManager(AbstractAsyncContextManager):
+class PersistentContextManager:
     """
     启动持久化浏览器上下文
 
@@ -195,14 +199,7 @@ class PersistentContextManager(AbstractAsyncContextManager):
     """
 
     # 持久化上下文们正在使用的 user_data_dir
-    _used_user_data_dirs: list[Path] = []
-    # TODO 未完善
-
-    def __new__(cls, user_data_dir: StrOrPath, **kwargs):
-        # 一个 user_data_dir 只能用来启动一个持久化上下文
-        if any(p.samefile(user_data_dir) for p in cls._used_user_data_dirs):
-            raise _BrowserLaunchedError(f'"{user_data_dir}" 已用于启动一个持久化上下文 ')
-        return super().__new__(cls, user_data_dir=user_data_dir, **kwargs)
+    __used_user_data_dirs: list[Path] = []
 
     def __init__(
         self,
@@ -210,7 +207,7 @@ class PersistentContextManager(AbstractAsyncContextManager):
         user_data_dir: StrOrPath,
         executable_path: StrOrPath,
         channel: Literal['chromium', 'chrome', 'msedge'],
-        stealth: bool = False,
+        need_stealth: bool = False,
         abort_res_types: Optional[Iterable[ResourceType]] = None,
         args: Optional[Sequence[str]] = None,
         ignore_default_args: Sequence[str] = ('--enable-automation',),
@@ -226,7 +223,7 @@ class PersistentContextManager(AbstractAsyncContextManager):
         self.__user_data_dir = user_data_dir
         self.__executable_path = executable_path
         self.__channel = channel
-        self.__stealth = stealth
+        self.__need_stealth = need_stealth
         self.__abort_res_types = abort_res_types
         self.__args = args
         self.__ignore_default_args = ignore_default_args
@@ -242,62 +239,90 @@ class PersistentContextManager(AbstractAsyncContextManager):
         self.__playwright: Optional[Playwright] = None
         self.__persistent_context: Optional[PlaywrightBrowserContext] = None
 
-    async def start(self):
-        self.__playwright = await _async_playwright().start()
-        self.__persistent_context = await self.__playwright.chromium.launch_persistent_context(
-            user_data_dir=self.__user_data_dir,
-            executable_path=self.__executable_path,
-            channel=self.__channel,
-            args=self.__args,
-            ignore_default_args=self.__ignore_default_args,
-            slow_mo=self.__slow_mo,
-            timeout=self.__timeout,
-            headless=self.__headless,
-            proxy=self.__proxy,
-            no_viewport=self.__no_viewport,
-            user_agent=self.__user_agent,
-            chromium_sandbox=self.__chromium_sandbox,
-            **self.__kwargs,
-        )
-        self._used_user_data_dirs.append(Path(self.__user_data_dir))
+    async def start(self) -> Self:
+        if any(p.samefile(self.__user_data_dir) for p in self.__used_user_data_dirs):
+            raise _BrowserLaunchedError(f'"{self.__user_data_dir}" 已被用于启动持久化上下文 ')
 
-        # 防爬虫检测
-        if self.__stealth is True:
-            await stealth(context_page=self.__persistent_context)
+        async with _persistent_context_lock:
+            if any(p.samefile(self.__user_data_dir) for p in self.__used_user_data_dirs):
+                raise _BrowserLaunchedError(f'"{self.__user_data_dir}" 已被用于启动持久化上下文 ')
 
-        # 屏蔽特定资源
-        if self.__abort_res_types is not None:
-            await abort_resources(
-                context_page=self.__persistent_context,
-                res_types=self.__abort_res_types,
+            self.__playwright = await _async_playwright().start()
+            self.__persistent_context = await self.__playwright.chromium.launch_persistent_context(
+                user_data_dir=self.__user_data_dir,
+                executable_path=self.__executable_path,
+                channel=self.__channel,
+                args=self.__args,
+                ignore_default_args=self.__ignore_default_args,
+                slow_mo=self.__slow_mo,
+                timeout=self.__timeout,
+                headless=self.__headless,
+                proxy=self.__proxy,
+                no_viewport=self.__no_viewport,
+                user_agent=self.__user_agent,
+                chromium_sandbox=self.__chromium_sandbox,
+                **self.__kwargs,
             )
 
-        return self
+            # 防爬虫检测
+            if self.__need_stealth is True:
+                await stealth(context_page=self.__persistent_context)
+            else:
+                self.__persistent_context.stealthed = False
 
-    async def close(self):
-        if self.__playwright is not None and self.__persistent_context is not None:
-            await self.__persistent_context.close()
-            self.__persistent_context = None
+            # 屏蔽特定资源
+            if self.__abort_res_types is not None:
+                await abort_resources(
+                    context_page=self.__persistent_context,
+                    res_types=self.__abort_res_types,
+                )
 
-            await self.__playwright.stop()
-            self.__playwright = None
+            # 把当前上下文所用的 user_data_dir 加到 used_user_data_dirs
+            self.__used_user_data_dirs.append(Path(self.__user_data_dir))
 
-            self._used_user_data_dirs.remove(self.__user_data_dir)
+            return self
+
+    async def close(self) -> None:
+        async with _persistent_context_lock:
+            if self.__playwright is not None and self.__persistent_context is not None:
+                await self.__persistent_context.close()
+                self.__persistent_context = None
+
+                await self.__playwright.stop()
+                self.__playwright = None
+
+                try:
+                    self.__used_user_data_dirs.remove(self.__user_data_dir)
+                except ValueError:
+                    pass
 
     @property
-    def context(self):
+    def context(self) -> PlaywrightBrowserContext:
         """获取包含的持久化上下文实例，如果浏览器还未启动会报错"""
         if self.__persistent_context is None:
             raise _BrowserClosedError('浏览器已经关闭或还未启动')
         return self.__persistent_context
 
-    async def new_page(self) -> PlaywrightPage:
+    async def new_page(
+        self,
+        need_stealth: bool = False,
+        abort_res_types: Optional[Iterable[ResourceType]] = None,
+    ) -> PlaywrightPage:
         """创建新页面"""
-        # TODO
-        if self.__persistent_context is None:
-            raise _BrowserClosedError('浏览器已经关闭或还未启动')
-        page = await self.__persistent_context.new_page()
-        page.stealthed = self.__stealth
+        context = self.context
+        page = await context.new_page()
+
+        # 防爬虫检测
+        if need_stealth is True:
+            page.stealthed = getattr(context, 'stealthed', None)
+            await stealth(context_page=page)
+        else:
+            page.stealthed = False
+
+        # 屏蔽特定资源
+        if abort_res_types is not None:
+            await abort_resources(context_page=page, res_types=abort_res_types)
+
         return page
 
     async def __aenter__(self):
