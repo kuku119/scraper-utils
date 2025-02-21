@@ -4,7 +4,8 @@ Playwright 浏览器相关工具
 
 from __future__ import annotations
 
-import asyncio as _asyncio
+from contextlib import AbstractAsyncContextManager
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from playwright.async_api import async_playwright as _async_playwright
@@ -16,14 +17,13 @@ from ..exceptions.browser_exception import (
     BrowserLaunchedError as _BrowserLaunchedError,
     BrowserClosedError as _BrowserClosedError,
     StealthError as _StealthError,
-    PlaywrightError as _PlaywrightError,
 )
 
 if TYPE_CHECKING:
-    from pathlib import Path
     from typing import (
         Optional,
         Literal,
+        Iterable,
         Sequence,
     )
 
@@ -34,47 +34,33 @@ if TYPE_CHECKING:
         Playwright,
     )
     from playwright._impl._api_structures import ProxySettings
-    from playwright_stealth import StealthConfig
 
     StrOrPath = str | Path
+
+
+"""
+可以通过多个 async_playwright().start() 同时启动多个 playwright 实例
+
+在一个 playwright 实例下，
+launch() 和 launch_persistent_context() 均可通过相同 executable_path 启动多个浏览器实例。
+但需注意：
+一个 user_data_dir 只能拿来启动一个持久化上下文，若使用同一 user_data_dir 启动多个持久化上下文，程序会崩溃
+"""
 
 
 __all__ = [
     'MS1000',
     'ResourceType',
-    'launch_browser',
-    'launch_persistent_browser',
-    'close_browser',
-    'create_new_page',
-    'stealth_page',
-    'open_url',
+    'BrowserManager',
+    'PersistentContextManager',
+    'stealth',
+    'abort_resources',
 ]
 
-__lock = _asyncio.Lock()
 
-__browser_launched = False
-
-__playwright: Optional[Playwright] = None
-__browser: Optional[PlaywrightBrowser] = None  # 非持久浏览器
-__persistent_context: Optional[PlaywrightBrowserContext] = None  # 持久浏览器上下文
-
-
-async def launch_browser(
-    executable_path: StrOrPath,
-    channel: Literal['chromium', 'chrome', 'msedge'],
-    headless: bool = True,
-    slow_mo: float = 0,
-    timeout: float = 30_000,
-    args: Optional[Sequence[str]] = None,
-    ignore_default_args: Sequence[str] = ('--enable-automation',),
-    proxy: Optional[ProxySettings] = None,
-    chromium_sandbox: bool = False,
-    **kwargs,
-) -> PlaywrightBrowser:
+class BrowserManager(AbstractAsyncContextManager):
     """
-    启动非持久化浏览器（浏览器为全局单例）
-
-    <b>程序结束前记得调用 `close_browser()` 关闭浏览器</b>
+    启动非持久化浏览器
 
     ---
 
@@ -90,64 +76,98 @@ async def launch_browser(
     8. `proxy`: 代理
     9. `chromium_sandbox`: 是否启用 chromium 沙箱模式
 
-    其余参数参照：
+    `kwargs` 参照：
     https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch
-
-    ---
-
-    如果已经启动其它浏览器，将会抛出 `BrowserLaunchedError` 异常
     """
-    global __browser_launched
-    global __browser
-    global __playwright
 
-    async with __lock:
-        # 在浏览器已经启动就抛出异常
-        if __browser_launched is False:
-            pwr = await _async_playwright().start()
-            browser: PlaywrightBrowser = await pwr.chromium.launch(
-                args=args,
-                channel=channel,
-                executable_path=executable_path,
-                headless=headless,
-                ignore_default_args=ignore_default_args,
-                proxy=proxy,
-                slow_mo=slow_mo,
-                timeout=timeout,
-                chromium_sandbox=chromium_sandbox,
-                **kwargs,
-            )
+    def __init__(
+        self,
+        *,
+        executable_path: StrOrPath,
+        channel: Literal['chromium', 'chrome', 'msedge'],
+        headless: bool = True,
+        slow_mo: float = 0,
+        timeout: float = 30_000,
+        args: Optional[Sequence[str]] = None,
+        ignore_default_args: Sequence[str] = ('--enable-automation',),
+        proxy: Optional[ProxySettings] = None,
+        chromium_sandbox: bool = False,
+        **kwargs,
+    ):
+        self.__executable_path = executable_path
+        self.__channel = channel
+        self.__headless = headless
+        self.__slow_mo = slow_mo
+        self.__timeout = timeout
+        self.__args = args
+        self.__ignore_default_args = ignore_default_args
+        self.__proxy = proxy
+        self.__chromium_sandbox = chromium_sandbox
+        self.__kwargs = kwargs
 
-            __playwright = pwr
-            __browser = browser
-            __browser_launched = True
+        self.__playwright: Optional[Playwright] = None
+        self.__browser: Optional[PlaywrightBrowser] = None
 
-            return __browser
-        else:
-            raise _BrowserLaunchedError('不要在已经启动浏览器的情况下再次启动')
+    async def start(self):
+        self.__playwright = await _async_playwright().start()
+        self.__browser = await self.__playwright.chromium.launch(
+            executable_path=self.__executable_path,
+            channel=self.__channel,
+            headless=self.__headless,
+            slow_mo=self.__slow_mo,
+            timeout=self.__timeout,
+            args=self.__args,
+            ignore_default_args=self.__ignore_default_args,
+            proxy=self.__proxy,
+            chromium_sandbox=self.__chromium_sandbox,
+            **self.__kwargs,
+        )
+
+        return self
+
+    async def close(self):
+        if self.__playwright is not None and self.__browser is not None:
+            await self.__browser.close()
+            self.__browser = None
+
+            await self.__playwright.stop()
+            self.__playwright = None
+
+    @property
+    def browser(self):
+        """获取包含的浏览器实例，如果浏览器还未启动会报错"""
+        if self.__browser is None:
+            raise _BrowserClosedError('浏览器已经关闭或还未启动')
+        return self.__browser
+
+    async def new_context(self) -> PlaywrightBrowserContext:
+        """创建新的浏览器上下文"""
+        # TODO
+        if self.__browser is None:
+            raise _BrowserClosedError('浏览器已经关闭或还未启动')
+
+        context = await self.__browser.new_context()
+        return context
+
+    async def new_page(self) -> PlaywrightPage:
+        """创建新页面"""
+        # TODO
+        if self.__browser is None:
+            raise _BrowserClosedError('浏览器已经关闭或还未启动')
+
+        page = await self.__browser.new_page()
+        return page
+
+    async def __aenter__(self):
+        return await self.start()
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        await self.close()
 
 
-async def launch_persistent_browser(
-    user_data_dir: StrOrPath,
-    executable_path: StrOrPath,
-    channel: Literal['chromium', 'chrome', 'msedge'],
-    stealth: bool = False,
-    abort_resources: Optional[Sequence[ResourceType]] = None,
-    args: Optional[Sequence[str]] = None,
-    ignore_default_args: Sequence[str] = ('--enable-automation',),
-    slow_mo: float = 0,
-    timeout: float = 30_000,
-    headless: bool = True,
-    proxy: Optional[ProxySettings] = None,
-    no_viewport: bool = True,
-    user_agent: Optional[str] = None,
-    chromium_sandbox: bool = False,
-    **kwargs,
-) -> PlaywrightBrowserContext:
+class PersistentContextManager(AbstractAsyncContextManager):
     """
-    启动持久化浏览器（浏览器为全局单例）
-
-    <b>程序结束前记得调用 `close_browser()` 关闭浏览器</b>
+    启动持久化浏览器上下文
 
     ---
 
@@ -156,7 +176,7 @@ async def launch_persistent_browser(
     2. `executable_path`: 浏览器可执行文件路径
     3. `channel`: 浏览器类型
     4. `stealth`: 是否需要防爬虫检测
-    5. `abort_resources`: 要屏蔽的资源
+    5. `abort_res_types`: 要屏蔽的资源类型
     6. `args`: 浏览器启动参数，chrome 参照：
     https://peter.sh/experiments/chromium-command-line-switches
     7. `ignore_default_args`: 参照：
@@ -170,180 +190,138 @@ async def launch_persistent_browser(
     13. `user_agent`: User-Agent
     14. `chromium_sandbox`: 是否启用 chromium 沙箱模式
 
-    其余参数参照：
+    `kwargs` 参照：
     https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context
-
-    ---
-
-    如果已经启动其它浏览器，将会抛出 `BrowserLaunchedError` 异常
     """
-    global __browser_launched
-    global __persistent_context
-    global __playwright
 
-    async with __lock:
-        # 在浏览器已经启动就抛出异常
-        if __browser_launched is False:
-            pwr = await _async_playwright().start()
-            context = await pwr.chromium.launch_persistent_context(
-                user_data_dir=user_data_dir,
-                executable_path=executable_path,
-                channel=channel,
-                args=args,
-                ignore_default_args=ignore_default_args,
-                timeout=timeout,
-                headless=headless,
-                proxy=proxy,
-                slow_mo=slow_mo,
-                no_viewport=no_viewport,
-                user_agent=user_agent,
-                chromium_sandbox=chromium_sandbox,
-                **kwargs,
+    # 持久化上下文们正在使用的 user_data_dir
+    _used_user_data_dirs: list[Path] = []
+
+    def __new__(cls, user_data_dir: StrOrPath, **kwargs):
+        # 一个 user_data_dir 只能用来启动一个持久化上下文
+        if any(p.samefile(user_data_dir) for p in cls._used_user_data_dirs):
+            raise _BrowserLaunchedError(f'"{user_data_dir}" 已用于启动一个持久化上下文 ')
+        return super().__new__(cls, user_data_dir=user_data_dir, **kwargs)
+
+    def __init__(
+        self,
+        *,
+        user_data_dir: StrOrPath,
+        executable_path: StrOrPath,
+        channel: Literal['chromium', 'chrome', 'msedge'],
+        stealth: bool = False,
+        abort_res_types: Optional[Iterable[ResourceType]] = None,
+        args: Optional[Sequence[str]] = None,
+        ignore_default_args: Sequence[str] = ('--enable-automation',),
+        slow_mo: float = 0,
+        timeout: float = 30_000,
+        headless: bool = True,
+        proxy: Optional[ProxySettings] = None,
+        no_viewport: bool = True,
+        user_agent: Optional[str] = None,
+        chromium_sandbox: bool = False,
+        **kwargs,
+    ):
+        self.__user_data_dir = user_data_dir
+        self.__executable_path = executable_path
+        self.__channel = channel
+        self.__stealth = stealth
+        self.__abort_res_types = abort_res_types
+        self.__args = args
+        self.__ignore_default_args = ignore_default_args
+        self.__slow_mo = slow_mo
+        self.__timeout = timeout
+        self.__headless = headless
+        self.__proxy = proxy
+        self.__no_viewport = no_viewport
+        self.__user_agent = user_agent
+        self.__chromium_sandbox = chromium_sandbox
+        self.__kwargs = kwargs
+
+        self.__playwright: Optional[Playwright] = None
+        self.__persistent_context: Optional[PlaywrightBrowserContext] = None
+
+    async def start(self):
+        self.__playwright = await _async_playwright().start()
+        self.__persistent_context = await self.__playwright.chromium.launch_persistent_context(
+            user_data_dir=self.__user_data_dir,
+            executable_path=self.__executable_path,
+            channel=self.__channel,
+            args=self.__args,
+            ignore_default_args=self.__ignore_default_args,
+            slow_mo=self.__slow_mo,
+            timeout=self.__timeout,
+            headless=self.__headless,
+            proxy=self.__proxy,
+            no_viewport=self.__no_viewport,
+            user_agent=self.__user_agent,
+            chromium_sandbox=self.__chromium_sandbox,
+            **self.__kwargs,
+        )
+
+        # 防爬虫检测
+        if self.__stealth is True:
+            await stealth(context_page=self.__persistent_context)
+
+        # 屏蔽特定资源
+        if self.__abort_res_types is not None:
+            await abort_resources(
+                context_page=self.__persistent_context,
+                res_types=self.__abort_res_types,
             )
 
-            if stealth:  # 防爬虫检测
-                await stealth_context(context=context)
+        return self
 
-            if abort_resources is not None:  # 屏蔽特定资源
-                await context.route(
-                    '**/*',
-                    lambda r: (
-                        r.abort() if r.request.resource_type in abort_resources else r.continue_()
-                    ),
-                )
+    async def close(self):
+        if self.__playwright is not None and self.__persistent_context is not None:
+            await self.__persistent_context.close()
+            self.__persistent_context = None
 
-            __playwright = pwr
-            __persistent_context = context
-            __browser_launched = True
+            await self.__playwright.stop()
+            self.__playwright = None
 
-            return __persistent_context
+    @property
+    def context(self):
+        """获取包含的持久化上下文实例，如果浏览器还未启动会报错"""
+        if self.__persistent_context is None:
+            raise _BrowserClosedError('浏览器已经关闭或还未启动')
+        return self.__persistent_context
 
-        raise _BrowserLaunchedError('不要在已经启动浏览器的情况下再次启动')
+    async def new_page(self) -> PlaywrightPage:
+        """创建新页面"""
+        # TODO
+        if self.__persistent_context is None:
+            raise _BrowserClosedError('浏览器已经关闭或还未启动')
+        page = await self.__persistent_context.new_page()
+        page.stealthed = self.__stealth
+        return page
 
+    async def __aenter__(self):
+        return await self.start()
 
-async def close_browser() -> None:
-    """关闭浏览器"""
-    global __browser_launched
-    global __browser
-    global __persistent_context
-    global __playwright
-
-    async with __lock:
-        try:
-            if __browser_launched is False:
-                raise _BrowserClosedError('浏览器已经关闭或还未启动')
-
-            if __browser is not None:
-                await __browser.close()
-
-            if __persistent_context is not None:
-                await __persistent_context.close()
-
-            if __playwright is not None:
-                await __playwright.stop()
-        except _PlaywrightError:
-            pass
-        finally:
-            __browser_launched = False
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        await self.close()
 
 
-async def stealth_page(
-    page: PlaywrightPage,
-    stealth_config: Optional[StealthConfig] = None,
-) -> PlaywrightPage:
-    """
-    防爬虫检测
-
-    ---
-
-    1. `page`: 浏览器页面
-    2. `stealth_config`: 防爬虫检测的相关设置
-    """
-
-    if getattr(page, 'stealthed', False) is True:
-        raise _StealthError('该页面已经隐藏')
-    else:
-        await _stealth_async(page, stealth_config)
-        page.stealthed = True
-
-    return page
+async def stealth(context_page: PlaywrightBrowserContext | PlaywrightPage) -> None:
+    """防爬虫检测"""
+    if getattr(context_page, 'stealthed', None) is True:
+        raise _StealthError('该浏览器上下文或页面已经隐藏')
+    await _stealth_async(context_page)
+    context_page.stealthed = True
 
 
-async def stealth_context(
-    context: PlaywrightBrowserContext,
-    stealth_config: Optional[StealthConfig] = None,
-) -> PlaywrightBrowserContext:
-    """
-    防爬虫检测
-
-    ---
-
-    1. `context`: 浏览器上下文
-    2. `stealth_config`: 防爬虫检测的相关设置
-    """
-
-    if getattr(context, 'stealthed', False) is True:
-        raise _StealthError('该浏览器上下文已经隐藏')
-    else:
-        await _stealth_async(context, stealth_config)
-        context.stealthed = True
-
-    return context
-
-
-async def create_new_page(
-    stealth: bool = False,
-    stealth_config: Optional[StealthConfig] = None,
-    abort_resources: Optional[Sequence[ResourceType]] = None,
-    no_viewport: bool = True,
-    **page_kwargs,
-) -> PlaywrightPage:
-    """
-    创建一个新页面
-
-    ---
-
-    1. `stealth`: 页面是否需要防爬虫检测
-    2. `stealth_config`: 防爬虫检测的相关设置
-    3. `abort_resources`: 页面需要屏蔽的资源，参照 `enums.browser_enum.ResourceType`
-    4. `no_viewport`: 非持久浏览器才有效
-
-    `page_kwargs` 仅在非持久浏览器才有效
-
-    其余参数参照：
-    https://playwright.dev/python/docs/api/class-browser#browser-new-page
-    """
-    if __browser_launched is False:
-        raise _BrowserClosedError('浏览器已经关闭或还未启动')
-
-    # 判断当前启动的是持久浏览器还是非持久浏览器
-    if __browser is not None:
-        page: PlaywrightPage = await __browser.new_page(
-            no_viewport=no_viewport,
-            **page_kwargs,
-        )
-    elif __persistent_context is not None:
-        page: PlaywrightPage = await __persistent_context.new_page()
-    else:
-        raise _BrowserClosedError('没有已经启动的浏览器')
-
-    if stealth is True:  # 防爬虫检测
-        await stealth_page(page=page, stealth_config=stealth_config)
-
-    if abort_resources is not None:  # 屏蔽特定资源
-        await page.route(
-            '**/*',
-            lambda r: r.abort() if r.request.resource_type in abort_resources else r.continue_(),
-        )
-
-    return page
+async def abort_resources(
+    context_page: PlaywrightBrowserContext | PlaywrightPage,
+    res_types: Iterable[ResourceType],
+) -> None:
+    """屏蔽特定资源的请求"""
+    await context_page.route(
+        '**/*',
+        lambda r: (r.abort() if r.request.resource_type in res_types else r.continue_()),
+    )
 
 
 async def open_url(page: PlaywrightPage, url: str):
-    """
-    打开目标 url
-
-    ---
-
-    # TODO 1. 超时重试 2. 检测响应是否正常
-    """
+    """打开目标 url"""
+    # TODO
