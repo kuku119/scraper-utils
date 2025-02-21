@@ -79,6 +79,16 @@ def build_bsr_url(site: str, node: str, language: Optional[str] = None) -> str:
     raise ValueError(f'"{node}" 不符合节点规范')
 
 
+def build_new_releases_url(site: str, node: str, language: Optional[str] = None) -> str:
+    """根据站点、节点构造新品 url"""
+    if _is_number(s=node):
+        if language is None:
+            return f'{AmazonSite.get_url(site=site)}/new-releases/-/{node}'
+        else:
+            return f'{AmazonSite.get_url(site=site)}/-/{language}/new-releases/-/{node}'
+    raise ValueError(f'"{node}" 不符合节点规范')
+
+
 def clean_product_image_url(url: str) -> str:
     """清理产品图 url，提取产品图的原图 url"""
     return _re.sub(r'\._.*?_\.', '.', url)
