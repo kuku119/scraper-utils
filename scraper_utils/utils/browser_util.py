@@ -196,6 +196,7 @@ class PersistentContextManager(AbstractAsyncContextManager):
 
     # 持久化上下文们正在使用的 user_data_dir
     _used_user_data_dirs: list[Path] = []
+    # TODO 未完善
 
     def __new__(cls, user_data_dir: StrOrPath, **kwargs):
         # 一个 user_data_dir 只能用来启动一个持久化上下文
@@ -258,6 +259,7 @@ class PersistentContextManager(AbstractAsyncContextManager):
             chromium_sandbox=self.__chromium_sandbox,
             **self.__kwargs,
         )
+        self._used_user_data_dirs.append(Path(self.__user_data_dir))
 
         # 防爬虫检测
         if self.__stealth is True:
@@ -279,6 +281,8 @@ class PersistentContextManager(AbstractAsyncContextManager):
 
             await self.__playwright.stop()
             self.__playwright = None
+
+            self._used_user_data_dirs.remove(self.__user_data_dir)
 
     @property
     def context(self):
