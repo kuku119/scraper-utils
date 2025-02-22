@@ -11,7 +11,7 @@ __all__ = [
 
 
 class ResourceType(_StrEnum):
-    """浏览器接收的资源类型"""
+    """浏览器接受的资源类型"""
 
     DOCUMENT = 'document'
     STYLESHEET = 'stylesheet'
