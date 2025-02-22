@@ -26,6 +26,7 @@ if TYPE_CHECKING:
         Literal,
         Iterable,
         Sequence,
+        Self,
     )
 
     from playwright.async_api import (
@@ -45,8 +46,10 @@ if TYPE_CHECKING:
 在一个 playwright 实例下，
 launch() 和 launch_persistent_context() 均可通过相同 executable_path 启动多个浏览器实例。
 但需注意：
-一个 user_data_dir 只能拿来启动一个持久化上下文，若使用同一 user_data_dir 启动多个持久化上下文，程序会崩溃
+一个 user_data_dir 只能拿来启动一个持久化上下文，若使用一个 user_data_dir 启动多个持久化上下文，程序会崩溃
 """
+
+# TODO 需要为各种事件（例如浏览器关闭、程序崩溃等）添加回调处理
 
 
 __all__ = [
@@ -124,8 +127,12 @@ class BrowserManager:
         self.__playwright: Optional[Playwright] = None
         self.__browser: Optional[PlaywrightBrowser] = None
 
-    async def start(self):
+    async def start(self) -> Self:
+        """启动浏览器，如果已经启动会抛出异常"""
         async with self.__start_close_lock:
+            if self.started() is True:
+                raise _BrowserLaunchedError('浏览器已经启动')
+
             self.__playwright = await _async_playwright().start()
             self.__browser = await self.__playwright.chromium.launch(
                 executable_path=self.__executable_path,
@@ -139,31 +146,36 @@ class BrowserManager:
                 **self.__kwargs,
             )
 
+            # TODO 在浏览器被关闭时添加事件，让 BrowserManager 能收到浏览器已被关闭的信息
+            # self.__browser.on('disconnected')
+
             return self
 
-    async def close(self):
+    async def close(self) -> None:
+        """关闭浏览器，如果还未启动会抛出异常"""
         async with self.__start_close_lock:
-            if self.__playwright is None or self.__browser is None:
+            if self.started() is False:
                 raise _BrowserClosedError('Playwright 实例或浏览器还未启动')
 
             try:
                 await self.__browser.close()
-                self.__browser = None
-
                 await self.__playwright.stop()
-                self.__playwright = None
             except _PlaywrightError:
                 pass
             finally:
                 self.__browser = None
                 self.__playwright = None
 
+    async def _browser_close_callback(self):
+        """当浏览器被关闭时（可能是正常退出，也可能是程序崩溃）触发的回调"""
+        # TODO
+
     def started(self) -> bool:
         """检查是否已经启动"""
-        return self.__browser is not None
+        # TODO
 
     @property
-    def browser(self):
+    def browser(self) -> PlaywrightBrowser:
         """获取包含的浏览器实例，如果还未启动会抛出异常"""
         if self.started() is False:
             raise _BrowserClosedError('浏览器已经关闭或还未启动')
@@ -191,6 +203,10 @@ class BrowserManager:
 
         context = await self.__browser.new_context()
         return context
+
+    async def _context_close_callback(self):
+        """当创建的上下文被关闭时会触发的回调"""
+        # TODO
 
     async def new_page(
         self,
@@ -293,8 +309,12 @@ class PersistentContextManager:
         self.__playwright: Optional[Playwright] = None
         self.__persistent_context: Optional[PlaywrightBrowserContext] = None
 
-    async def start(self):
+    async def start(self) -> Self:
+        """启动持久化上下文，如果已经启动或者 user_data_dir 被用于其它持久化上下文会抛出异常"""
         async with self.__start_close_lock:
+            if self.started() is True:
+                raise _BrowserLaunchedError('持久化上下文已经启动')
+
             # 检查当前的 user_data_dir 是否未被用于其它持久化上下文
             if self.__user_data_dir in self.__used_user_data_dirs:
                 raise _BrowserLaunchedError(f'"{self.__user_data_dir}" 已被用于启动其它持久上下文')
@@ -320,6 +340,9 @@ class PersistentContextManager:
                         **self.__kwargs,
                     )
 
+                    # TODO 在持久化上下文被关闭时添加事件，让 PersistentContextManager 能接收到持久化上下文被关闭的消息
+                    # self.__persistent_context.on('close')
+
                     self.__used_user_data_dirs.add(self.__user_data_dir)
 
                     # 防爬虫检测
@@ -336,10 +359,10 @@ class PersistentContextManager:
                     self.__used_user_data_dirs.discard(self.__user_data_dir)
                     raise _BrowserClosedError(f'启动浏览器失败\n{pe}')
 
-    async def close(self):
+    async def close(self) -> None:
         """关闭持久化上下文，如果还未启动会报错"""
         async with self.__start_close_lock:
-            if self.__playwright is None or self.__persistent_context is None:
+            if self.started() is False:
                 raise _BrowserClosedError('Playwright 实例或持久化上下文还未启动')
 
             try:
@@ -352,9 +375,13 @@ class PersistentContextManager:
                 self.__playwright = None
                 self.__used_user_data_dirs.discard(self.__user_data_dir)
 
+    async def _context_close_callback(self):
+        """当持久化上下文被关闭时（可能是正常退出，也可能是程序崩溃）触发的回调"""
+        # TODO
+
     def started(self) -> bool:
         """检查是否已经启动"""
-        return self.__persistent_context is not None
+        # TODO
 
     @property
     def context(self) -> PlaywrightBrowserContext:
@@ -391,8 +418,11 @@ class PersistentContextManager:
         await self.close()
 
 
-async def stealth(context_page: PlaywrightBrowserContext | PlaywrightPage) -> None:
-    """防爬虫检测"""
+async def stealth(
+    context_page: PlaywrightBrowserContext | PlaywrightPage,
+    ignore_stealthed: bool = False,
+) -> None:
+    """隐藏浏览器上下文或页面"""
     # # 如果该页面的父上下文已被隐藏会跳过
     # if isinstance(context_page, PlaywrightPage):
     #     if getattr(context_page.context, 'stealthed', None) is True:
@@ -400,6 +430,9 @@ async def stealth(context_page: PlaywrightBrowserContext | PlaywrightPage) -> No
 
     # 如果浏览器上下文或页面已被隐藏会抛出异常
     if getattr(context_page, 'stealthed', None) is True:
+        # 可以忽略已被隐藏
+        if ignore_stealthed is True:
+            return
         raise _StealthError('该浏览器上下文或页面已经隐藏')
 
     await _stealth_async(context_page)
