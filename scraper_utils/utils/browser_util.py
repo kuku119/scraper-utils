@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     )
     from playwright.async_api import ProxySettings
 
-    StrOrPath = str | _Path
+    type StrOrPath = str | _Path
 
 
 """

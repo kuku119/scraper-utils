@@ -5,10 +5,7 @@
 from __future__ import annotations
 
 from pathlib import Path as _Path
-from tkinter.filedialog import (
-    askopenfilename as _askopenfilename,
-    askopenfilenames as _askopenfilenames,
-)
+from tkinter.filedialog import askopenfilename as _askofn, askopenfilenames as _askofns
 from typing import TYPE_CHECKING, overload
 
 from aiofiles import open as _async_open
@@ -18,13 +15,12 @@ from ..exceptions.file_exception import NoSelectedFileError as _NoSelectedFileEr
 if TYPE_CHECKING:
     from typing import Awaitable, Generator, Iterable, Literal, Optional
 
-    StrOrPath = str | _Path
+    type StrOrPath = str | _Path
 
 
 __all__ = [
     'path_exists',
     'read_file',
-    'write_file',
     'write_file',
     'select_file_dialog',
     'select_files_dialog',
@@ -34,10 +30,7 @@ __all__ = [
 _sync_open = open
 
 
-def path_exists(
-    path: StrOrPath,
-    follow_symlinks: bool = True,
-) -> bool:
+def path_exists(path: StrOrPath, follow_symlinks: bool = True) -> bool:
     """路径是否存在"""
     if isinstance(path, _Path):
         return path.exists(follow_symlinks=follow_symlinks)
@@ -82,10 +75,7 @@ def read_file(file: StrOrPath, mode: Literal['str'], async_mode: Literal[False],
 
 
 def read_file(
-    file: StrOrPath,
-    mode: Literal['bytes', 'str'],
-    async_mode: bool,
-    encoding: Optional[str] = None,
+    file: StrOrPath, mode: Literal['bytes', 'str'], async_mode: bool, encoding: Optional[str] = None
 ) -> bytes | str | Awaitable[bytes] | Awaitable[str]:
     """读取文件"""
     if async_mode:
@@ -105,9 +95,7 @@ async def read_file_async(file: StrOrPath, mode: Literal['str'], encoding: Optio
 
 
 async def read_file_async(
-    file: StrOrPath,
-    mode: Literal['bytes', 'str'],
-    encoding: Optional[str] = None,
+    file: StrOrPath, mode: Literal['bytes', 'str'], encoding: Optional[str] = None
 ) -> bytes | str:
     """异步读取文件字节或字符"""
     file = _check_before_read(file=file)
@@ -136,11 +124,7 @@ def read_file_sync(file: StrOrPath, mode: Literal['str'], encoding: Optional[str
     """同步读取文件字符"""
 
 
-def read_file_sync(
-    file: StrOrPath,
-    mode: Literal['bytes', 'str'],
-    encoding: Optional[str] = None,
-) -> bytes | str:
+def read_file_sync(file: StrOrPath, mode: Literal['bytes', 'str'], encoding: Optional[str] = None) -> bytes | str:
     """同步读取文件字节或字符"""
     file = _check_before_read(file=file)
     match mode:
@@ -199,11 +183,7 @@ def write_file(
 
 
 def write_file(
-    file: StrOrPath,
-    data: bytes | str,
-    async_mode: bool,
-    replace: bool = True,
-    encoding: str = 'utf-8',
+    file: StrOrPath, data: bytes | str, async_mode: bool, replace: bool = True, encoding: str = 'utf-8'
 ) -> Awaitable[_Path] | _Path:
     """写入文件"""
     if async_mode:
@@ -275,9 +255,9 @@ def select_file_dialog(
     例如：[('EXE File', '*.exe'), ('Python File', '*.py')]
     """
     if filetypes is None:
-        result = _askopenfilename(title=title, initialdir=initialdir)
+        result = _askofn(title=title, initialdir=initialdir)
     else:
-        result = _askopenfilename(title=title, initialdir=initialdir, filetypes=filetypes)
+        result = _askofn(title=title, initialdir=initialdir, filetypes=filetypes)
 
     if len(result) == 0:
         raise _NoSelectedFileError('未选择目标文件')
@@ -301,9 +281,9 @@ def select_files_dialog(
     例如：[('EXE File', '*.exe'), ('Python File', '*.py')]
     """
     if filetypes is None:
-        results = _askopenfilenames(title=title, initialdir=initialdir)
+        results = _askofns(title=title, initialdir=initialdir)
     else:
-        results = _askopenfilenames(title=title, initialdir=initialdir, filetypes=filetypes)
+        results = _askofns(title=title, initialdir=initialdir, filetypes=filetypes)
 
     if len(results) == 0:
         raise _NoSelectedFileError('未选择目标文件')

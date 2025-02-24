@@ -7,23 +7,18 @@ from __future__ import annotations
 from json import loads as json_loads, dumps as json_dumps
 from typing import TYPE_CHECKING, overload
 
-from .file_util import (
-    read_file as _read_file,
-    write_file as _write_file,
-)
+from .file_util import read_file as _read_file, write_file as _write_file
 
 if TYPE_CHECKING:
     from pathlib import Path
     from typing import Any, Awaitable, Optional, Literal
 
-    StrOrPath = str | Path
+    type StrOrPath = str | Path
 
 
 __all__ = [
-    #
     'json_loads',
     'json_dumps',
-    #
     'read_json',
     'write_json',
 ]
@@ -83,7 +78,7 @@ def write_json(
     encoding: str = 'utf-8',
     ensure_ascii: bool = False,
     indent: Optional[int | str] = None,
-    **kwargs,
+    **dump_kwargs,
 ) -> Path:
     """同步写入 JSON"""
 
@@ -95,7 +90,7 @@ def write_json(
     encoding: str = 'utf-8',
     ensure_ascii: bool = False,
     indent: Optional[int | str] = None,
-    **kwargs,
+    **dump_kwargs,
 ) -> Path | Awaitable[Path]:
     """写入 JSON"""
     if async_mode:
@@ -105,7 +100,7 @@ def write_json(
             encoding=encoding,
             ensure_ascii=ensure_ascii,
             indent=indent,
-            **kwargs,
+            **dump_kwargs,
         )
     else:
         return write_json_sync(
@@ -114,7 +109,7 @@ def write_json(
             encoding=encoding,
             ensure_ascii=ensure_ascii,
             indent=indent,
-            **kwargs,
+            **dump_kwargs,
         )
 
 
@@ -124,9 +119,10 @@ async def write_json_async(
     encoding: str = 'utf-8',
     ensure_ascii: bool = False,
     indent: Optional[int | str] = None,
+    **dump_kwargs,
 ) -> Path:
     """异步写入 JSON"""
-    json_str = json_dumps(data, indent=indent, ensure_ascii=ensure_ascii)
+    json_str = json_dumps(data, indent=indent, ensure_ascii=ensure_ascii, **dump_kwargs)
     return await _write_file(file=file, data=json_str, encoding=encoding, replace=True, async_mode=True)
 
 
@@ -136,7 +132,8 @@ def write_json_sync(
     encoding: str = 'utf-8',
     ensure_ascii: bool = False,
     indent: Optional[int | str] = None,
+    **dump_kwargs,
 ) -> Path:
     """同步写入 JSON"""
-    json_str = json_dumps(data, indent=indent, ensure_ascii=ensure_ascii)
+    json_str = json_dumps(data, indent=indent, ensure_ascii=ensure_ascii, **dump_kwargs)
     return _write_file(file=file, data=json_str, encoding=encoding, replace=True, async_mode=False)

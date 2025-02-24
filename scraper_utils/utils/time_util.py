@@ -23,9 +23,6 @@ def now(tz: Optional[tzinfo] = None) -> _datetime:
     return _datetime.now(tz=tz)
 
 
-def now_str(
-    formatter: str = '%Y-%m-%d %H:%M:%S',
-    tz: Optional[tzinfo] = None,
-) -> str:
+def now_str(formatter: str = '%Y-%m-%d %H:%M:%S', tz: Optional[tzinfo] = None) -> str:
     """按照 formatter 获取当前时间字符串"""
     return now(tz=tz).strftime(formatter)

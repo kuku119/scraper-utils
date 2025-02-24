@@ -8,112 +8,129 @@ from __future__ import annotations
 
 from io import BytesIO as _BytesIO
 from pathlib import Path as _Path
-from typing import TYPE_CHECKING
-from warnings import deprecated as _deprecated
+from typing import TYPE_CHECKING, overload
 
 from PIL import Image as _PillowImageModule
 
-from .file_util import (
-    read_bytes as _read_bytes,
-    write_bytes as _write_bytes,
-)
+from .file_util import read_file as _read_file, write_file as _write_file
 
 if TYPE_CHECKING:
-    from typing import Optional
+    from typing import Optional, Literal, Awaitable, Annotated
+
     from PIL.Image import Image as PillowImage
 
-    StrOrPath = str | _Path
+    type StrOrPath = str | _Path
 
 
 __all__ = [
-    #
     'read_image',
-    'read_image_async',
-    'read_image_sync',
-    #
     'write_image',
-    'write_image_async',
-    'write_image_sync',
-    #
     'resize_image',
 ]
 
-
-@_deprecated('更推荐使用具体的 read_image_async 或 read_image_sync')
-def read_image(
-    file: StrOrPath,
-    async_mode: bool,
-):
-    """
-    读取图片文件
-
-    通用的读取图片文件的方法，可选择同步还是异步
-    """
-    if async_mode:
-        return read_image_async(file=file)
-    else:
-        return read_image(file=file)
+########## 读取 ##########
 
 
-async def read_image_async(file: StrOrPath) -> PillowImage:
+@overload
+async def read_image(
+    file: StrOrPath, async_mode: Literal[True], formats: Optional[list[str] | tuple[str, ...]] = None
+) -> PillowImage:
     """异步读取图片文件"""
-    file_bytes = await _read_bytes(file=file, async_mode=True)
-    return _PillowImageModule.open(_BytesIO(file_bytes))
 
 
-def read_image_sync(file: StrOrPath) -> PillowImage:
+@overload
+def read_image(
+    file: StrOrPath, async_mode: Literal[False], formats: Optional[list[str] | tuple[str, ...]] = None
+) -> PillowImage:
     """同步读取图片文件"""
-    file_bytes = _read_bytes(file=file, async_mode=False)
-    return _PillowImageModule.open(_BytesIO(file_bytes))
 
 
-@_deprecated('更推荐使用具体的 write_image_async 或 write_image_sync')
-def write_image(
-    file: StrOrPath,
-    image: PillowImage,
-    async_mode: bool,
-):
-    """
-    写入图片文件
-
-    通用的写入图片文件的方法，可选择同步还是异步
-    """
+def read_image(
+    file: StrOrPath, async_mode: bool, formats: Optional[list[str] | tuple[str, ...]] = None
+) -> PillowImage | Awaitable[PillowImage]:
+    """读取图片文件"""
     if async_mode:
-        return write_image_async(file=file, image=image)
+        return read_image_async(file=file, formats=formats)
     else:
-        return write_image_sync(file=file, image=image)
+        return read_image_sync(file=file, formats=formats)
 
 
-async def write_image_async(
-    file: StrOrPath,
-    image: PillowImage,
+async def read_image_async(file: StrOrPath, formats: Optional[list[str] | tuple[str, ...]] = None) -> PillowImage:
+    """异步读取图片文件"""
+    file_bytes = await _read_file(file=file, mode='bytes', async_mode=True)
+    return _PillowImageModule.open(_BytesIO(file_bytes), formats=formats)
+
+
+def read_image_sync(file: StrOrPath, formats: Optional[list[str] | tuple[str, ...]] = None) -> PillowImage:
+    """同步读取图片文件"""
+    file_bytes = _read_file(file=file, mode='bytes', async_mode=False)
+    return _PillowImageModule.open(_BytesIO(file_bytes), formats=formats)
+
+
+########## 写入 ##########
+
+
+def _write_image_format(file: StrOrPath) -> str:
+    """根据保存路径获取图片的 format"""
+    match file:
+        case _Path():
+            result = file.suffix[1:].upper()
+        case str():
+            result = file.split('.')[-1]
+        case _:
+            raise TypeError(f'传入了错误的 file "{type(file)}"')
+
+    if result == 'JPG':
+        result = 'JPEG'
+
+    return result
+
+
+@overload
+async def write_image(
+    file: StrOrPath, image: PillowImage, async_mode: Literal[True], image_format: Optional[str] = None
 ) -> _Path:
     """异步写入图片文件"""
-    file = _Path(file)
-
-    image_format = file.suffix[1:].upper()
-    if image_format == 'JPG':
-        image_format = 'JPEG'
-
-    image_bytes_fp = _BytesIO()
-    image.save(image_bytes_fp, format=image_format)
-    return await _write_bytes(file=file, data=image_bytes_fp.getvalue(), replace=True, async_mode=True)
 
 
-def write_image_sync(
-    file: StrOrPath,
-    image: PillowImage,
+@overload
+def write_image(
+    file: StrOrPath, image: PillowImage, async_mode: Literal[False], image_format: Optional[str] = None
 ) -> _Path:
     """同步写入图片文件"""
-    file = _Path(file)
 
-    image_format = file.suffix[1:].upper()
-    if image_format == 'JPG':
-        image_format = 'JPEG'
+
+def write_image(
+    file: StrOrPath, image: PillowImage, async_mode: bool, image_format: Optional[str] = None
+) -> _Path | Awaitable[_Path]:
+    """写入图片文件"""
+    if async_mode:
+        return write_image_async(file=file, image=image, image_format=image_format)
+    else:
+        return write_image_sync(file=file, image=image, image_format=image_format)
+
+
+async def write_image_async(file: StrOrPath, image: PillowImage, image_format: Optional[str] = None) -> _Path:
+    """异步写入图片文件"""
+    if image_format is None:
+        image_format = _write_image_format(file=file)
 
     image_bytes_fp = _BytesIO()
     image.save(image_bytes_fp, format=image_format)
-    return _write_bytes(file=file, data=image_bytes_fp.getvalue(), replace=True, async_mode=False)
+    return await _write_file(file=file, data=image_bytes_fp.getvalue(), replace=True, async_mode=True)
+
+
+def write_image_sync(file: StrOrPath, image: PillowImage, image_format: Optional[str] = None) -> _Path:
+    """同步写入图片文件"""
+    if image_format is None:
+        image_format = _write_image_format(file=file)
+
+    image_bytes_fp = _BytesIO()
+    image.save(image_bytes_fp, format=image_format)
+    return _write_file(file=file, data=image_bytes_fp.getvalue(), replace=True, async_mode=False)
+
+
+########## 其它 ##########
 
 
 def resize_image(
@@ -125,8 +142,11 @@ def resize_image(
     reducing_gap: Optional[float] = None,
 ) -> PillowImage:
     """重新设置图片大小"""
-    if width <= 0 or height <= 0:
-        raise ValueError('图片的宽度和高度都必须大于 0')
+    if width <= 0:
+        raise ValueError(f'宽度必须大于 0 "width={width}"')
+    if height <= 0:
+        raise ValueError(f'高度必须大于 0 "height={height}"')
+
     return image.resize(
         size=(width, height),
         resample=_PillowImageModule.Resampling.LANCZOS if resample is None else resample,

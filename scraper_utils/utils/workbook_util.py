@@ -10,10 +10,7 @@ from typing import TYPE_CHECKING, overload
 from openpyxl.reader.excel import load_workbook
 from openpyxl.drawing.image import Image as _OpenpyxlImage
 
-from .file_util import (
-    read_file as _read_file,
-    write_file as _write_file,
-)
+from .file_util import read_file as _read_file, write_file as _write_file
 from .text_util import is_letter as _is_letter
 
 if TYPE_CHECKING:
@@ -24,7 +21,7 @@ if TYPE_CHECKING:
     from openpyxl.worksheet.worksheet import Worksheet
     from PIL.Image import Image as PillowImage
 
-    StrOrPath = str | Path
+    type StrOrPath = str | Path
 
 
 __all__ = [

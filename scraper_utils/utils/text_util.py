@@ -5,9 +5,7 @@
 import re as _re
 
 __all__ = [
-    #
     'is_number',
-    #
     'is_letter',
     'is_lower_letter',
     'is_upper_letter',

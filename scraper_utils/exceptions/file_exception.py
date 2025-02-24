@@ -9,5 +9,3 @@ __all__ = [
 
 class NoSelectedFileError(Exception):
     """没有选择文件时抛出该异常"""
-
-    pass

@@ -8,7 +8,7 @@ from enum import Enum as _Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Generator, Self
+    from typing import Generator
 
 
 __all__ = [
@@ -32,12 +32,12 @@ class AmazonSite(_Enum):
     6. ES
     """
 
-    US = 'https://www.amazon.com'  # 美国
-    UK = 'https://www.amazon.co.uk'  # 英国
-    DE = 'https://www.amazon.de'  # 德国
-    FR = 'https://www.amazon.fr'  # 法国
-    IT = 'https://www.amazon.it'  # 意大利
-    ES = 'https://www.amazon.es'  # 西班牙
+    US = 'https://www.amazon.com'
+    UK = 'https://www.amazon.co.uk'
+    DE = 'https://www.amazon.de'
+    FR = 'https://www.amazon.fr'
+    IT = 'https://www.amazon.it'
+    ES = 'https://www.amazon.es'
 
     @property
     def url(self):
@@ -45,13 +45,13 @@ class AmazonSite(_Enum):
         return self.value
 
     @classmethod
-    def get_site(cls, site: str) -> Self:
+    def get_site(cls, site: str):
         """根据 site 获取对应的站点"""
         site = site.upper()
         if any(site == s.name for s in cls.supported_sites()):
             return AmazonSite[site]
         else:
-            raise ValueError(f'Site {site} not supported')
+            raise ValueError(f'不支持的站点 "{site}"')
 
     @classmethod
     def get_url(cls, site: str) -> str:
@@ -59,7 +59,7 @@ class AmazonSite(_Enum):
         return cls.get_site(site=site).url
 
     @classmethod
-    def supported_sites(cls) -> Generator[Self, None, None]:
+    def supported_sites(cls) -> Generator['AmazonSite']:
         """支持的站点"""
         for site in cls:
             yield site
