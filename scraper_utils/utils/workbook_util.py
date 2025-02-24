@@ -5,90 +5,148 @@
 from __future__ import annotations
 
 from io import BytesIO as _BytesIO
-from typing import TYPE_CHECKING
-from warnings import deprecated as _deprecated
+from typing import TYPE_CHECKING, overload
 
 from openpyxl.reader.excel import load_workbook
 from openpyxl.drawing.image import Image as _OpenpyxlImage
 
 from .file_util import (
-    read_bytes as _read_bytes,
-    write_bytes as _write_bytes,
+    read_file as _read_file,
+    write_file as _write_file,
 )
 from .text_util import is_letter as _is_letter
 
 if TYPE_CHECKING:
-    from pathlib import Path as _Path
+    from pathlib import Path
+    from typing import Awaitable, Literal
 
     from openpyxl.workbook import Workbook
     from openpyxl.worksheet.worksheet import Worksheet
     from PIL.Image import Image as PillowImage
 
-    StrOrPath = str | _Path
+    StrOrPath = str | Path
 
 
 __all__ = [
-    #
     'load_workbook',
-    #
     'read_workbook',
-    'read_workbook_async',
-    'read_workbook_sync',
-    #
     'write_workbook',
-    'write_workbook_async',
-    'write_workbook_sync',
     #
-    'string_column_to_integer_column',
-    'integer_column_to_string_column',
+    'column_str2int',
+    'column_int2str',
     'insert_image',
 ]
 
+########## 读取 ##########
 
-@_deprecated('更推荐使用具体的 read_workbook_async 或 read_workbook_sync')
+
+@overload
+async def read_workbook(
+    file: StrOrPath,
+    async_mode: Literal[True],
+    *,
+    read_only=False,
+    data_only=False,
+    keep_links=True,
+    rich_text=False,
+) -> Workbook:
+    """异步读取工作簿"""
+
+
+@overload
 def read_workbook(
     file: StrOrPath,
-    async_mode,
+    async_mode: Literal[False],
+    *,
     read_only: bool = False,
     data_only: bool = False,
-    **kwargs,
-):
-    """读取工作簿文件"""
+    keep_links: bool = True,
+    rich_text: bool = False,
+) -> Workbook:
+    """同步读取工作簿"""
+
+
+def read_workbook(
+    file: StrOrPath,
+    async_mode: bool,
+    *,
+    read_only: bool = False,
+    data_only: bool = False,
+    keep_links: bool = True,
+    rich_text: bool = False,
+) -> Workbook | Awaitable[Workbook]:
+    """读取工作簿"""
     if async_mode:
-        return read_workbook_async(file=file, read_only=read_only, data_only=data_only, **kwargs)
+        return read_workbook_async(
+            file=file,
+            read_only=read_only,
+            data_only=data_only,
+            keep_links=keep_links,
+            rich_text=rich_text,
+        )
     else:
-        return read_workbook_sync(file=file, read_only=read_only, data_only=data_only, **kwargs)
+        return read_workbook_sync(
+            file=file,
+            read_only=read_only,
+            data_only=data_only,
+            keep_links=keep_links,
+            rich_text=rich_text,
+        )
 
 
 async def read_workbook_async(
     file: StrOrPath,
+    *,
     read_only: bool = False,
     data_only: bool = False,
-    **kwargs,
+    keep_links: bool = True,
+    rich_text: bool = False,
 ) -> Workbook:
     """异步读取工作簿"""
-    workbook_bytes = _BytesIO(await _read_bytes(file=file, async_mode=True))
-    return load_workbook(filename=workbook_bytes, read_only=read_only, data_only=data_only, **kwargs)
+    workbook_bytes = _BytesIO(await _read_file(file=file, mode='bytes', async_mode=True))
+    return load_workbook(
+        filename=workbook_bytes,
+        read_only=read_only,
+        data_only=data_only,
+        keep_links=keep_links,
+        rich_text=rich_text,
+    )
 
 
 def read_workbook_sync(
     file: StrOrPath,
+    *,
     read_only: bool = False,
     data_only: bool = False,
-    **kwargs,
+    keep_links: bool = True,
+    rich_text: bool = False,
 ) -> Workbook:
     """同步读取工作簿"""
-    workbook_bytes = _BytesIO(_read_bytes(file=file, async_mode=False))
-    return load_workbook(filename=workbook_bytes, read_only=read_only, data_only=data_only, **kwargs)
+    workbook_bytes = _BytesIO(_read_file(file=file, mode='bytes', async_mode=False))
+    return load_workbook(
+        filename=workbook_bytes,
+        read_only=read_only,
+        data_only=data_only,
+        keep_links=keep_links,
+        rich_text=rich_text,
+    )
 
 
-@_deprecated('更推荐使用具体的 write_workbook_async 或 write_workbook_sync')
-def write_workbook(
-    file: StrOrPath,
-    workbook: Workbook,
-    async_mode: bool,
-):
-    """写入工作簿文件"""
+########## 写入 ##########
+
+
+@overload
+async def write_workbook(file: StrOrPath, workbook: Workbook, async_mode: Literal[True]) -> Path:
+    """异步写入工作簿"""
+
+
+@overload
+def write_workbook(file: StrOrPath, workbook: Workbook, async_mode: Literal[False]) -> Path:
+    """同步写入工作簿"""
+
+
+def write_workbook(file: StrOrPath, workbook: Workbook, async_mode: bool) -> Path | Awaitable[Path]:
+    """写入工作簿"""
     if async_mode:
         return write_workbook_async(file=file, workbook=workbook)
     else:
@@ -98,25 +156,28 @@ def write_workbook(
 async def write_workbook_async(
     file: StrOrPath,
     workbook: Workbook,
-) -> _Path:
+) -> Path:
     """异步写入工作簿"""
     workbook_bytes = _BytesIO()
     workbook.save(workbook_bytes)
-    return await _write_bytes(file=file, data=workbook_bytes.getvalue(), async_mode=True)
+    return await _write_file(file=file, data=workbook_bytes.getvalue(), async_mode=True)
 
 
 def write_workbook_sync(
     file: StrOrPath,
     workbook: Workbook,
-) -> _Path:
+) -> Path:
     """同步写入工作簿"""
     workbook_bytes = _BytesIO()
     workbook.save(workbook_bytes)
-    return _write_bytes(file=file, data=workbook_bytes.getvalue(), async_mode=False)
+    return _write_file(file=file, data=workbook_bytes.getvalue(), async_mode=False)
 
 
-def string_column_to_integer_column(column_name: str) -> int:
-    """字母形式的列名转成数字形式的列号"""
+########## 列操作 ##########
+
+
+def column_str2int(column_name: str) -> int:
+    """字母形式的列名转成数字形式的列号 A -> 1"""
     if not _is_letter(column_name) or len(column_name) > 3:
         raise ValueError(f'"{column_name}" 不符合列名规范')
 
@@ -130,8 +191,8 @@ def string_column_to_integer_column(column_name: str) -> int:
     return result
 
 
-def integer_column_to_string_column(column_index: int) -> str:
-    """数字形式的列号转成字母形式的列名"""
+def column_int2str(column_index: int) -> str:
+    """数字形式的列号转成字母形式的列名 1 -> A"""
     if 1 <= column_index <= 16384:
         result = ''
         while column_index > 0:
@@ -140,6 +201,9 @@ def integer_column_to_string_column(column_index: int) -> str:
             column_index //= 26
         return result
     raise ValueError(f'"{column_index}" 超出列号范围 1 <= column_index <= 16384')
+
+
+########## 单元格 ##########
 
 
 def insert_image(
@@ -152,6 +216,6 @@ def insert_image(
     """往特定单元格插入 Pillow 图片"""
     image_bytes_io = _BytesIO()
     image.save(image_bytes_io, format=image_format)
-    column = column if isinstance(column, str) else integer_column_to_string_column(column_index=column)
+    column = column if isinstance(column, str) else column_int2str(column_index=column)
     image_bytes_io.seek(0)
     sheet.add_image(_OpenpyxlImage(image_bytes_io), f'{column}{row}')
