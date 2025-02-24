@@ -2,8 +2,6 @@
 图片相关工具
 """
 
-# TODO
-
 from __future__ import annotations
 
 from io import BytesIO as _BytesIO
