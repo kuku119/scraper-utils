@@ -24,7 +24,6 @@ if TYPE_CHECKING:
     from typing import (
         Optional,
         Literal,
-        Iterable,
         Sequence,
         Self,
     )
@@ -319,24 +318,28 @@ class PersistentContextManager:
             async with _persistent_context_start_lock:
                 # 再次检查当前的 user_data_dir 是否未被用于其它持久化上下文
                 if self.__user_data_dir in self.__used_user_data_dirs:
-                    raise _BrowserLaunchedError(f'"{self.__user_data_dir}" 已被用于启动其它持久上下文')
+                    raise _BrowserLaunchedError(
+                        f'"{self.__user_data_dir}" 已被用于启动其它持久上下文'
+                    )
 
                 self.__used_user_data_dirs.add(self.__user_data_dir)
 
                 try:
                     self.__playwright = await _async_playwright().start()
-                    self.__persistent_context = await self.__playwright.chromium.launch_persistent_context(
-                        user_data_dir=self.__user_data_dir,
-                        executable_path=self.__executable_path,
-                        channel=self.__channel,
-                        args=self.__args,
-                        ignore_default_args=self.__ignore_default_args,
-                        slow_mo=self.__slow_mo,
-                        timeout=self.__timeout,
-                        headless=self.__headless,
-                        proxy=self.__proxy,
-                        no_viewport=self.__no_viewport,
-                        **self.__kwargs,
+                    self.__persistent_context = (
+                        await self.__playwright.chromium.launch_persistent_context(
+                            user_data_dir=self.__user_data_dir,
+                            executable_path=self.__executable_path,
+                            channel=self.__channel,
+                            args=self.__args,
+                            ignore_default_args=self.__ignore_default_args,
+                            slow_mo=self.__slow_mo,
+                            timeout=self.__timeout,
+                            headless=self.__headless,
+                            proxy=self.__proxy,
+                            no_viewport=self.__no_viewport,
+                            **self.__kwargs,
+                        )
                     )
 
                     # 当持久化上下文被关闭时（可能是正常退出，也可能是程序崩溃）触发的回调
@@ -348,7 +351,9 @@ class PersistentContextManager:
 
                     # 屏蔽特定资源
                     if self.__abort_res_types is not None:
-                        await abort_resources(context_page=self.__persistent_context, res_types=self.__abort_res_types)
+                        await abort_resources(
+                            context_page=self.__persistent_context, res_types=self.__abort_res_types
+                        )
 
                     return self
 
@@ -431,7 +436,9 @@ class PersistentContextManager:
         await self.close()
 
 
-async def stealth(context_page: PlaywrightBrowserContext | PlaywrightPage, ignore_stealthed: bool = False) -> None:
+async def stealth(
+    context_page: PlaywrightBrowserContext | PlaywrightPage, ignore_stealthed: bool = False
+) -> None:
     """隐藏浏览器上下文或页面"""
     # 如果浏览器上下文或页面已被隐藏会抛出异常
     if getattr(context_page, 'stealthed', None) is True:
