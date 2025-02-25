@@ -1,5 +1,5 @@
 """
-亚马逊 URL 相关工具
+亚马逊相关工具
 """
 
 from __future__ import annotations

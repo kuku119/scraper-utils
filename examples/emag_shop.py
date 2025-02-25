@@ -8,7 +8,7 @@ from random import uniform, randint
 from pathlib import Path
 from sys import stderr
 from time import perf_counter
-from typing import AsyncGenerator, Generator, Optional, Self
+from typing import AsyncGenerator, Sequence, Optional, Self, Generator
 
 from aiohttp import ClientResponseError, ClientSession, ClientTimeout
 from fake_http_header import FakeHttpHeader
@@ -23,7 +23,7 @@ from playwright.async_api import BrowserContext, Page
 
 from scraper_utils.enums.browser_enum import ResourceType
 from scraper_utils.utils.browser_util import PersistentContextManager, MS1000
-from scraper_utils.utils.emag_url_util import build_product_url, clean_product_image_url
+from scraper_utils.utils.emag_util import build_product_url, clean_product_image_url
 from scraper_utils.utils.file_util import write_file
 from scraper_utils.utils.image_util import read_image, resize_image
 from scraper_utils.utils.workbook_util import (
@@ -32,6 +32,9 @@ from scraper_utils.utils.workbook_util import (
     write_workbook,
     column_str2int as s2i,
 )
+
+# 要爬取的目标行
+target_rows = range(14, 26 + 1)
 
 # 当前工作目录
 cwd = Path.cwd()
@@ -122,18 +125,14 @@ class CardItem:
         if self.__image_save_path is not None:
             return self.__image_save_path
         if self.image_ext is not None:
-            self.__image_save_path = cwd.joinpath(
-                f'temp/emag_product_images/{self.pnk}.{self.image_ext}'
-            )
+            self.__image_save_path = cwd.joinpath(f'temp/emag_product_images/{self.pnk}.{self.image_ext}')
         return self.__image_save_path
 
 
 class Shop:
     """单个店铺下的产品"""
 
-    def __init__(
-        self, url: str, shop_id: Optional[str] = None, products: Optional[list[CardItem]] = None
-    ) -> None:
+    def __init__(self, url: str, shop_id: Optional[str] = None, products: Optional[list[CardItem]] = None) -> None:
         self.url = url
         self.__shop_id: Optional[str] = shop_id
         self.__products: list[CardItem] = products if products is not None else list()
@@ -163,9 +162,7 @@ class Shop:
             return NotImplemented
         if self.shop_id != other.shop_id:
             raise ValueError(f'无法合并不同的店铺')
-        return self.__class__(
-            url=self.url, products=list(dict.fromkeys(self.products + other.products))
-        )
+        return self.__class__(url=self.url, products=list(dict.fromkeys(self.products + other.products)))
 
     def append(self, product: CardItem) -> None:
         """添加产品"""
@@ -175,7 +172,7 @@ class Shop:
         return f'{self.__class__.__name__}("{self.url}", {len(self.products)} products)'
 
 
-async def start_scrape(browser_context: BrowserContext):
+async def start_scrape(browser_context: BrowserContext, target_rows: Sequence[int]):
     """开始爬取"""
     # 匹配下一页按钮
     next_page_selector = '//ul[@id="listing-paginator"]/li[last()]'
@@ -191,23 +188,19 @@ async def start_scrape(browser_context: BrowserContext):
     result_workbook.remove(result_workbook.active)  # type: ignore
 
     try:
-        for shop_url in load_shop_workbook(cwd.joinpath('temp/emag_shop.xlsx')):
+        for shop_url in load_shop_workbook(cwd.joinpath('temp/emag_shop.xlsx'), target_rows):
             # 单个店铺的爬取结果
             one_shop_result = Shop(shop_url)
 
             new_page = await browser_context.new_page()
-            await asyncio.sleep(30 + randint(0, 30))  # 随机等待一段时间
+            await asyncio.sleep(10 + randint(0, 10))  # 随机等待一段时间
             await new_page.goto(shop_url, timeout=60 * MS1000)
-            async for loaded_page in wait_page_load(
-                new_page, next_page_selector, card_item_selector
-            ):
+            async for loaded_page in wait_page_load(new_page, next_page_selector, card_item_selector):
                 # 单个店铺下的产品
                 one_page_result = await parse_shop_page(loaded_page, card_item_selector)
                 one_shop_result = one_shop_result + one_page_result
 
-            logger.debug(
-                f'"{one_shop_result.shop_id}" 爬取出 {len(one_shop_result.products)} 个产品'
-            )
+            logger.debug(f'"{one_shop_result.shop_id}" 爬取出 {len(one_shop_result.products)} 个产品')
 
             # 下载单个店铺的产品图
             await download_one_shop_images(one_shop_result)
@@ -222,7 +215,7 @@ async def start_scrape(browser_context: BrowserContext):
     except asyncio.CancelledError:
         logger.warning('CancelledError: 爬取任务被中断')
     except Exception as e:  # 需要加这个吗？
-        logger.debug(e)
+        logger.error(e)
 
     finally:
         if len(result_workbook.sheetnames) > 0:
@@ -234,13 +227,14 @@ async def start_scrape(browser_context: BrowserContext):
             logger.success(f'结果已保存至 "{result_path}"')
 
 
-def load_shop_workbook(file: Path) -> Generator[str]:
+def load_shop_workbook(file: Path, target_rows: Sequence[int]) -> Generator[str]:
     """加载店铺表格，每次返回一行店铺链接"""
     logger.info(f'读取表格 "{file}"')
 
     workbook = read_workbook(file=file, async_mode=False, read_only=True)
     sheet = workbook['Sheet1']
-    for row in range(2, sheet.max_row + 1):
+    for row in target_rows:
+        # for row in range(14, sheet.max_row + 1):
         url = sheet.cell(row=row, column=1).value
 
         logger.debug(f'读取第 {row} 行的 "{url}"')
@@ -385,9 +379,7 @@ async def download_one_shop_images(
     # 下载产品图的任务
     async with ClientSession() as client:
         download_imag_tasks = [
-            download_image(
-                item.origin_image_url, item.image_save_path, client, fake_header, concurrent
-            )
+            download_image(item.origin_image_url, item.image_save_path, client, fake_header, concurrent)
             for item in shop.products
             if item.image_save_path is not None and item.origin_image_url is not None
         ]
@@ -411,9 +403,7 @@ async def download_image(
     async with semaphore:
         try:
             logger.info(f'下载产品图 "{url}"')
-            async with client.get(
-                url, headers=headers, timeout=ClientTimeout(total=30)
-            ) as response:
+            async with client.get(url, headers=headers, timeout=ClientTimeout(total=30)) as response:
                 response.raise_for_status()
                 content = await response.read()
                 saved_path = await write_file(file=save_path, data=content, async_mode=True)
@@ -465,24 +455,16 @@ def save_sheet(workbook: Workbook, shop: Shop) -> None:
         if item.origin_image_url is not None:
             sheet.cell(row, 2, value=item.origin_image_url)
             sheet.cell(row, 2).alignment = center_align
-            sheet.cell(row, 2).hyperlink = Hyperlink(
-                ref=item.origin_image_url, target=item.origin_image_url
-            )
+            sheet.cell(row, 2).hyperlink = Hyperlink(ref=item.origin_image_url, target=item.origin_image_url)
             sheet.cell(row, 2).font = hyperlink_font
 
             # 检查图片文件是否存在，存在则插入到单元格
-            if (
-                item.image_save_path is not None
-                and item.image_save_path.exists()
-                and item.image_ext is not None
-            ):
+            if item.image_save_path is not None and item.image_save_path.exists() and item.image_ext is not None:
                 sheet.row_dimensions[row].height = int(120 * 0.75)
 
                 image = read_image(file=item.image_save_path, async_mode=False)
                 image = resize_image(image=image, height=120, width=120)
-                insert_image(
-                    sheet=sheet, image=image, row=row, column=2, image_format=item.image_ext
-                )
+                insert_image(sheet=sheet, image=image, row=row, column=2, image_format=item.image_ext)
 
         # Top Favorite
         sheet.cell(row, 3, value=str(item.top_favorite))
@@ -519,7 +501,7 @@ if __name__ == '__main__':
         )
         await browser_manager.start()
 
-        await start_scrape(browser_context=browser_manager.context)
+        await start_scrape(browser_manager.context, target_rows)
 
         # 关闭浏览器
         await browser_manager.close()
