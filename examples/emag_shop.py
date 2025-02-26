@@ -8,9 +8,10 @@ from random import uniform, randint
 from pathlib import Path
 from sys import stderr
 from time import perf_counter
-from typing import AsyncGenerator, Sequence, Optional, Self, Generator
+from typing import AsyncGenerator, Optional, Self, Generator
 
 from aiohttp import ClientResponseError, ClientSession, ClientTimeout
+
 from fake_http_header import FakeHttpHeader
 from loguru import logger
 from openpyxl.workbook import Workbook
@@ -36,9 +37,6 @@ from scraper_utils.utils.workbook_util import (
     write_workbook,
     column_str2int as s2i,
 )
-
-
-# TODO 打包成可交互的 exe
 
 
 # 当前工作目录
@@ -180,8 +178,6 @@ async def start_scrape(browser_context: BrowserContext):
     # 去除第一个的空 Sheet
     result_workbook.remove(result_workbook.active)  # type: ignore
 
-    # 匹配下一页按钮
-    next_page_selector = '//ul[@id="listing-paginator"]/li[last()]'
     # 匹配 card-item 标签
     card_item_selector = (
         '//div[(@class="card-item card-standard js-product-data js-card-clickable " or '
@@ -196,7 +192,7 @@ async def start_scrape(browser_context: BrowserContext):
             new_page = await browser_context.new_page()
             await asyncio.sleep(10 + randint(0, 10))  # 随机等待一段时间
             await new_page.goto(shop_url, timeout=60 * MS1000)
-            async for loaded_page in wait_page_load(new_page, next_page_selector, card_item_selector):
+            async for loaded_page in wait_page_load(new_page, card_item_selector):
                 # 单个店铺下的产品
                 one_page_result = await parse_shop_page(loaded_page, card_item_selector)
                 one_shop_result = one_shop_result + one_page_result
@@ -230,7 +226,7 @@ async def start_scrape(browser_context: BrowserContext):
 
 def load_shop_workbook() -> Generator[str]:
     """加载店铺表格，每次返回一行店铺链接"""
-    # 读取表格
+    # 打开文件选择对话框，选取表格文件
     file = select_file_dialog(title='选择文件', filetypes=[('xlsx file', '.xlsx')])
     logger.info(f'读取工作簿 "{file}"')
     workbook = read_workbook(file=file, async_mode=False, read_only=True)
@@ -277,7 +273,6 @@ def load_shop_workbook() -> Generator[str]:
 
 async def wait_page_load(
     page: Page,
-    next_page_selector: str,
     card_item_selector: str,
     target_count: int = 60,
     next_page_timeout: float = 10,
@@ -313,8 +308,8 @@ async def wait_page_load(
         yield page
 
         # 等待下一页的按钮加载出来
-        next_page_tag = page.locator(next_page_selector)
-        await next_page_tag.wait_for(timeout=next_page_timeout * MS1000)
+        next_page_tag = page.locator('//ul[@id="listing-paginator"]/li[last()]')
+        await next_page_tag.wait_for(timeout=next_page_timeout * MS1000, state='attached')
 
         # 下一页不能点击就退出
         next_page_tag_class_attr = await next_page_tag.get_attribute('class', timeout=MS1000)
