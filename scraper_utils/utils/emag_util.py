@@ -52,12 +52,12 @@ def validate_pnk(pnk: str) -> bool:
 
 
 def build_product_url(pnk: str) -> str:
-    """构造产品页 url"""
+    """构造产品页链接"""
     if not validate_pnk(pnk=pnk):
         raise ValueError('pnk 不能为空')
     return f'{BASE_URL}/-/pd/{pnk}'
 
 
 def clean_product_image_url(url: str) -> str:
-    """清理产品图 url，返回原图 url"""
+    """清理产品图 url，返回原图链接"""
     return _re.sub(r'\?width=\d+&height=\d+&hash=[0-9A-F]+', '', url)

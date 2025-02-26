@@ -98,5 +98,5 @@ def build_new_releases_url(site: str, node: str, language: Optional[str] = None)
 
 
 def clean_product_image_url(url: str) -> str:
-    """清理产品图 url，提取产品图的原图 url"""
+    """清理产品图 url，提取产品图的原图链接"""
     return _re.sub(r'\._.*?_\.', '.', url)
