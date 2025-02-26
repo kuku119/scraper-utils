@@ -29,3 +29,5 @@ Desktop.ini
 # Other
 /[Tt][Ee][Mm][Pp]*
 /chrome_data/
+/emag_product_images/
+*.xlsx
