@@ -341,6 +341,9 @@ class PersistentContextManager:
                     # 当持久化上下文被关闭时（可能是正常退出，也可能是程序崩溃）触发的回调
                     self.__persistent_context.on('close', self._on_context_close)
 
+                    # 设置全局超时时间（包括等待网页加载、等待元素等）
+                    self.__persistent_context.set_default_timeout(self.__timeout)
+
                     # 隐藏上下文
                     if self.__need_stealth is True:
                         await stealth(context_page=self.__persistent_context)
