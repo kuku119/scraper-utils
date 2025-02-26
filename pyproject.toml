@@ -1,9 +1,9 @@
 [project]
 name = "scraper-utils"
-version = "0.1.0"
+version = "1.0.0"
 description = "爬虫所需工具"
 authors = [{ name = "kk119", email = "jdtcty2002@163.com" }]
-requires-python = ">=3.13,<3.14"
+requires-python = "^3.13"
 dependencies = [
     "aiofiles (>=24.1.0,<25.0.0)",
     "aiohttp (>=3.11.12,<4.0.0)",
