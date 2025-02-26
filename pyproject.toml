@@ -21,7 +21,6 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"
 loguru = "^0.7.3"
-pyinstaller = "^6.12.0"
 
 
 [tool.poetry.group.test.dependencies]
