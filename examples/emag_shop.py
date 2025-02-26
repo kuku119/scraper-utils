@@ -335,7 +335,7 @@ async def parse_shop_page(page: Page, card_item_selector: str) -> Shop:
 
         # pnk
         data_url: str = await card_item_tag.get_attribute('data-url', timeout=MS1000)  # type: ignore
-        pnk_match = re.search(r'/pd/([0-9A-Z]{9})(/|$)', data_url)
+        pnk_match = re.search(r'/pd/([0-9A-Z]{9})(/|\?|$)', data_url)
         if pnk_match is None:
             continue
         pnk = pnk_match.group(1)
