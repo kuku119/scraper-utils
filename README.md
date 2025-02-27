@@ -7,4 +7,4 @@
 预计支持的网站:
 
 * [Amazon](https://www.amazon.com)
-* [Emag](https://www.emag.ro)
+* [eMAG](https://www.emag.ro)
