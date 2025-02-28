@@ -1,5 +1,5 @@
 """
-Emag 相关相关工具
+eMAG 相关相关工具
 """
 
 from __future__ import annotations

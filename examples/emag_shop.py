@@ -1,5 +1,5 @@
 """
-爬取 emag 店铺
+爬取 eMAG 店铺
 """
 
 import asyncio
