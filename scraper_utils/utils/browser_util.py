@@ -490,8 +490,6 @@ class PersistentContextManager:
 
     ---
 
-    # TODO 更新 docstring
-
     * `user_data_dir`:
     用户资料所在文件夹（如果传入的是相对路径，那会尝试解析成绝对路径）
     * `executable_path`: 浏览器可执行文件路径
@@ -499,18 +497,55 @@ class PersistentContextManager:
         * `chromium`: Chromium 无头模式
         * `chrome`: Chrome
         * `msedge`: Edge
-    * `need_stealth`: 是否需要防爬虫检测
     * `abort_res_types`: 要屏蔽的资源类型
+    * `accept_downloads`: 是否自动下载所有附件
     * `args`: 浏览器启动参数，chrome 参照：
+    * `base_url`: 基础链接
+    * `bypass_csp`: 是否绕过 Content-Security-Policy
     https://peter.sh/experiments/chromium-command-line-switches
-    * `ignore_default_args`: 参照：
-    https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context-option-ignore-default-args
-    * `slow_mo`: 浏览器各项操作的时间间隔（毫秒）
-    * `timeout`: 各项操作的超时时间（毫秒）
+    * `chromium_sandbox`: 是否启用 Chromium 沙箱模式
+    * `client_certificates`: 证书
+    * `color_scheme`: 模拟 prefers-colors-scheme
+    * `device_scale_factor`: 缩放比例
+    * `downloads_path`: 下载目录，会在浏览器上下文退出时会被删除
+    * `env`: 指定浏览器可见的环境变量，默认为 process.env
+    * `extra_http_headers`: 额外 HTTP 请求头
+    * `forced_colors`: 模拟 forced-colors
+    * `geolocation`: 地理位置
+    * `handle_sighup`: 终端关闭时是否自动关闭浏览器
+    * `handle_sigint`: 按下 `Ctrl+C` 时是否自动关闭浏览器
+    * `handle_sigterm`: 程序结束或被 kill 时是否自动关闭浏览器
+    * `has_touch`: 是否为触摸屏
     * `headless`: 是否隐藏浏览器界面
+    * `http_credentials`: HTTP 验证凭据
+    * `ignore_default_args`: 参照：
+    https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-option-ignore-default-args
+    * `ignore_https_errors`: 发送网络请求时是否忽略 HTTPS 错误
+    * `is_mobile`: 是否为移动设备
+    * `java_script_enabled`: 是否启用 JavaScript
+    * `locale`: 语言
+    * `need_stealth`: 是否需要隐藏
+    * `no_viewport`: 是否不固定视区小大
+    * `offline`: 是否为离线模式
+    * `permissions`: 权限
     * `proxy`: 代理
-    * `no_viewport：参照：`
-    https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context-option-no-viewport
+    * `record_har_content`: HAR
+    * `record_har_mode`: HAR
+    * `record_har_omit_content`: HAR
+    * `record_har_path`: HAR
+    * `record_har_url_filter`: HAR
+    * `record_video_dir`: 启用指定目录中所有页面的视频录制
+    * `record_video_size`: 录制视频的尺寸
+    * `reduced_motion`: 模拟 prefers-reduced-motion
+    * `screen`: 窗口大小
+    * `service_workers`: 是否允许站点注册 Service worker
+    * `slow_mo`: 浏览器各项操作的时间间隔（毫秒）
+    * `strict_selectors`: 是否启用选择器的严格模式
+    * `timeout`: 等待浏览器启动的超时时间（毫秒）
+    * `timezone_id`: 时区
+    * `traces_dir`: 跟踪的保存目录
+    * `user_agent`: User-Agent
+    * `viewport`: 视区小大
     """
 
     # 持久化上下文们正在使用的 user_data_dir，保证一个 user_data_dir 只能被用于一个持久化上下文
@@ -644,61 +679,65 @@ class PersistentContextManager:
             async with _persistent_context_start_lock:
                 # 再次检查当前的 user_data_dir 是否未被用于其它持久化上下文
                 if self.__user_data_dir in self.__used_user_data_dirs:
-                    raise _BrowserLaunchedError(f'"{self.__user_data_dir}" 已被用于启动其它持久上下文')
+                    raise _BrowserLaunchedError(
+                        f'"{self.__user_data_dir}" 已被用于启动其它持久上下文'
+                    )
 
                 self.__used_user_data_dirs.add(self.__user_data_dir)
 
                 try:
                     self.__playwright = await _async_playwright().start()
-                    self.__persistent_context = await self.__playwright.chromium.launch_persistent_context(
-                        user_data_dir=self.__user_data_dir,
-                        executable_path=self.__executable_path,
-                        channel=self.__channel,
-                        accept_downloads=self.__accept_downloads,
-                        args=self.__args,
-                        bypass_csp=self.__bypass_csp,
-                        base_url=self.__base_url,
-                        chromium_sandbox=self.__chromium_sandbox,
-                        client_certificates=self.__client_certificates,
-                        color_scheme=self.__color_scheme,
-                        device_scale_factor=self.__device_scale_factor,
-                        downloads_path=self.__downloads_path,
-                        env=self.__env,
-                        extra_http_headers=self.__extra_http_headers,
-                        forced_colors=self.__forced_colors,
-                        geolocation=self.__geolocation,
-                        handle_sighup=self.__handle_sighup,
-                        handle_sigint=self.__handle_sigint,
-                        handle_sigterm=self.__handle_sigterm,
-                        has_touch=self.__has_touch,
-                        headless=self.__headless,
-                        http_credentials=self.__http_credentials,
-                        ignore_default_args=self.__ignore_default_args,
-                        ignore_https_errors=self.__ignore_https_errors,
-                        is_mobile=self.__is_mobile,
-                        java_script_enabled=self.__java_script_enabled,
-                        locale=self.__locale,
-                        no_viewport=self.__no_viewport,
-                        offline=self.__offline,
-                        permissions=self.__permissions,
-                        proxy=self.__proxy,
-                        record_har_content=self.__record_har_content,
-                        record_har_mode=self.__record_har_mode,
-                        record_har_omit_content=self.__record_har_omit_content,
-                        record_har_path=self.__record_har_path,
-                        record_har_url_filter=self.__record_har_url_filter,
-                        record_video_dir=self.__record_video_dir,
-                        record_video_size=self.__record_video_size,
-                        reduced_motion=self.__reduced_motion,
-                        screen=self.__screen,
-                        service_workers=self.__service_workers,
-                        slow_mo=self.__slow_mo,
-                        strict_selectors=self.__strict_selectors,
-                        timeout=self.__timeout,
-                        timezone_id=self.__timezone_id,
-                        traces_dir=self.__traces_dir,
-                        user_agent=self.__user_agent,
-                        viewport=self.__viewport,
+                    self.__persistent_context = (
+                        await self.__playwright.chromium.launch_persistent_context(
+                            user_data_dir=self.__user_data_dir,
+                            executable_path=self.__executable_path,
+                            channel=self.__channel,
+                            accept_downloads=self.__accept_downloads,
+                            args=self.__args,
+                            bypass_csp=self.__bypass_csp,
+                            base_url=self.__base_url,
+                            chromium_sandbox=self.__chromium_sandbox,
+                            client_certificates=self.__client_certificates,
+                            color_scheme=self.__color_scheme,
+                            device_scale_factor=self.__device_scale_factor,
+                            downloads_path=self.__downloads_path,
+                            env=self.__env,
+                            extra_http_headers=self.__extra_http_headers,
+                            forced_colors=self.__forced_colors,
+                            geolocation=self.__geolocation,
+                            handle_sighup=self.__handle_sighup,
+                            handle_sigint=self.__handle_sigint,
+                            handle_sigterm=self.__handle_sigterm,
+                            has_touch=self.__has_touch,
+                            headless=self.__headless,
+                            http_credentials=self.__http_credentials,
+                            ignore_default_args=self.__ignore_default_args,
+                            ignore_https_errors=self.__ignore_https_errors,
+                            is_mobile=self.__is_mobile,
+                            java_script_enabled=self.__java_script_enabled,
+                            locale=self.__locale,
+                            no_viewport=self.__no_viewport,
+                            offline=self.__offline,
+                            permissions=self.__permissions,
+                            proxy=self.__proxy,
+                            record_har_content=self.__record_har_content,
+                            record_har_mode=self.__record_har_mode,
+                            record_har_omit_content=self.__record_har_omit_content,
+                            record_har_path=self.__record_har_path,
+                            record_har_url_filter=self.__record_har_url_filter,
+                            record_video_dir=self.__record_video_dir,
+                            record_video_size=self.__record_video_size,
+                            reduced_motion=self.__reduced_motion,
+                            screen=self.__screen,
+                            service_workers=self.__service_workers,
+                            slow_mo=self.__slow_mo,
+                            strict_selectors=self.__strict_selectors,
+                            timeout=self.__timeout,
+                            timezone_id=self.__timezone_id,
+                            traces_dir=self.__traces_dir,
+                            user_agent=self.__user_agent,
+                            viewport=self.__viewport,
+                        )
                     )
 
                     # 当持久化上下文被关闭时（可能是正常退出，也可能是程序崩溃）触发的回调
@@ -713,7 +752,9 @@ class PersistentContextManager:
 
                     # 屏蔽特定资源
                     if self.__abort_res_types is not None:
-                        await abort_resources(context_page=self.__persistent_context, res_types=self.__abort_res_types)
+                        await abort_resources(
+                            context_page=self.__persistent_context, res_types=self.__abort_res_types
+                        )
 
                     return self
 
@@ -796,7 +837,9 @@ class PersistentContextManager:
         await self.close()
 
 
-async def stealth(context_page: PlaywrightBrowserContext | PlaywrightPage, ignore_stealthed: bool = False) -> None:
+async def stealth(
+    context_page: PlaywrightBrowserContext | PlaywrightPage, ignore_stealthed: bool = False
+) -> None:
     """隐藏浏览器上下文或页面"""
     # 如果浏览器上下文或页面已被隐藏会抛出异常
     if getattr(context_page, 'stealthed', None):
