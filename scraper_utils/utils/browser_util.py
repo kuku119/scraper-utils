@@ -216,7 +216,7 @@ class BrowserManager:
         bypass_csp: bool = False,
         client_certificates: Optional[list[ClientCertificate]] = None,
         color_scheme: Literal['light', 'dark', 'no-preference', 'null'] = 'light',
-        device_scale_factor: float = 1,
+        device_scale_factor: Optional[float] = None,
         extra_http_headers: Optional[dict[str, str]] = None,
         forced_colors: Literal['active', 'none', 'null'] = 'none',
         geolocation: Optional[Geolocation] = None,
@@ -338,7 +338,6 @@ class BrowserManager:
         if abort_res_types is not None:
             await abort_resources(context_page=context, res_types=abort_res_types)
 
-        context = await self.__browser.new_context()
         return context
 
     async def new_page(
@@ -350,7 +349,7 @@ class BrowserManager:
         bypass_csp: bool = False,
         client_certificates: Optional[list[ClientCertificate]] = None,
         color_scheme: Literal['light', 'dark', 'no-preference', 'null'] = 'light',
-        device_scale_factor: float = 1,
+        device_scale_factor: Optional[float] = None,
         extra_http_headers: Optional[dict[str, str]] = None,
         forced_colors: Literal['active', 'none', 'null'] = 'none',
         geolocation: Optional[Geolocation] = None,
@@ -565,7 +564,7 @@ class PersistentContextManager:
         chromium_sandbox: bool = False,
         client_certificates: Optional[list[ClientCertificate]] = None,
         color_scheme: Literal['light', 'dark', 'no-preference', 'null'] = 'light',
-        device_scale_factor: float = 1,
+        device_scale_factor: Optional[float] = None,
         downloads_path: Optional[StrOrPath] = None,
         env: Optional[dict[str, str | float | bool]] = None,
         extra_http_headers: Optional[dict[str, str]] = None,
