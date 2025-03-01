@@ -90,9 +90,9 @@ class BrowserManager:
     * `headless`: 是否隐藏浏览器界面
     * `ignore_default_args`: 参照：
     https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-option-ignore-default-args
+    * `launch_timeout`: 等待浏览器启动的超时时间（毫秒）
     * `proxy`: 代理
     * `slow_mo`: 浏览器各项操作的时间间隔（毫秒）
-    * `timeout`: 等待浏览器启动的超时时间（毫秒）
     * `traces_dir`: 跟踪的保存目录
     """
 
@@ -110,9 +110,9 @@ class BrowserManager:
         handle_sigterm: bool = True,
         headless: bool = True,
         ignore_default_args: Sequence[str] = ('--enable-automation',),
+        launch_timeout: float = 30_000,
         proxy: Optional[ProxySettings] = None,
         slow_mo: float = 0,
-        timeout: float = 30_000,
         traces_dir: Optional[StrOrPath] = None,
     ):
         self.__executable_path = executable_path
@@ -126,9 +126,9 @@ class BrowserManager:
         self.__handle_sigterm = handle_sigterm
         self.__headless = headless
         self.__ignore_default_args = ignore_default_args
+        self.__launch_timeout = launch_timeout
         self.__proxy = proxy
         self.__slow_mo = slow_mo
-        self.__timeout = timeout
         self.__traces_dir = traces_dir
 
         # 保证启动和关闭是互斥的
@@ -162,7 +162,7 @@ class BrowserManager:
                 ignore_default_args=self.__ignore_default_args,
                 proxy=self.__proxy,
                 slow_mo=self.__slow_mo,
-                timeout=self.__timeout,
+                timeout=self.__launch_timeout,
                 traces_dir=self.__traces_dir,
             )
 
@@ -212,10 +212,13 @@ class BrowserManager:
         *,
         abort_res_types: Optional[Sequence[ResourceType]] = None,
         accept_downloads: bool = True,
+        add_init_script: Optional[str] = None,
         base_url: Optional[str] = None,
         bypass_csp: bool = False,
         client_certificates: Optional[list[ClientCertificate]] = None,
         color_scheme: Literal['light', 'dark', 'no-preference', 'null'] = 'light',
+        default_navigation_timeout: int = 30_000,
+        default_timeout: int = 30_000,
         device_scale_factor: Optional[float] = None,
         extra_http_headers: Optional[dict[str, str]] = None,
         forced_colors: Literal['active', 'none', 'null'] = 'none',
@@ -254,10 +257,13 @@ class BrowserManager:
 
         * `abort_res_types`: 要屏蔽的资源类型
         * `accept_downloads`: 是否自动下载所有附件
+        * `add_init_script`: 要注入的 JavaScript 脚本内容
         * `base_url`: 基础链接
         * `bypass_csp`: 是否绕过 Content-Security-Policy
         * `client_certificates`: 证书
         * `color_scheme`: 模拟 prefers-colors-scheme
+        * `default_navigation_timeout`: 导航相关的默认超时时间
+        * `default_timeout`: 所有操作的默认超时时间
         * `device_scale_factor`: 缩放比例
         * `extra_http_headers`: 额外 HTTP 请求头
         * `forced_colors`: 模拟 forced-colors
@@ -330,6 +336,16 @@ class BrowserManager:
             viewport=viewport,
         )
 
+        # 设置默认超时时间
+        # 所有操作的默认超时时间
+        context.set_default_timeout(default_timeout)
+        # 导航相关的默认超时时间
+        context.set_default_navigation_timeout(default_navigation_timeout)
+
+        # 注入 JavaScript 脚本
+        if add_init_script is not None:
+            await context.add_init_script(script=add_init_script)
+
         # 隐藏浏览器上下文
         if need_stealth:
             await stealth(context_page=context)
@@ -345,10 +361,13 @@ class BrowserManager:
         *,
         abort_res_types: Optional[Sequence[ResourceType]] = None,
         accept_downloads: bool = True,
+        add_init_script: Optional[str] = None,
         base_url: Optional[str] = None,
         bypass_csp: bool = False,
         client_certificates: Optional[list[ClientCertificate]] = None,
         color_scheme: Literal['light', 'dark', 'no-preference', 'null'] = 'light',
+        default_navigation_timeout: int = 30_000,
+        default_timeout: int = 30_000,
         device_scale_factor: Optional[float] = None,
         extra_http_headers: Optional[dict[str, str]] = None,
         forced_colors: Literal['active', 'none', 'null'] = 'none',
@@ -386,10 +405,13 @@ class BrowserManager:
 
         * `abort_res_types`: 要屏蔽的资源类型
         * `accept_downloads`: 是否自动下载所有附件
+        * `add_init_script`: 要注入的 JavaScript 脚本内容
         * `base_url`: 基础链接
         * `bypass_csp`: 是否绕过 Content-Security-Policy
         * `client_certificates`: 证书
         * `color_scheme`: 模拟 prefers-colors-scheme
+        * `default_navigation_timeout`: 导航相关的默认超时时间
+        * `default_timeout`: 所有操作的默认超时时间
         * `device_scale_factor`: 缩放比例
         * `extra_http_headers`: 额外 HTTP 请求头
         * `forced_colors`: 模拟 forced-colors
@@ -462,6 +484,16 @@ class BrowserManager:
             viewport=viewport,
         )
 
+        # 设置默认超时时间
+        # 所有操作的默认超时时间
+        page.set_default_timeout(default_timeout)
+        # 导航相关的默认超时时间
+        page.set_default_navigation_timeout(default_navigation_timeout)
+
+        # 注入 JavaScript 脚本
+        if add_init_script is not None:
+            await page.add_init_script(script=add_init_script)
+
         # 隐藏页面
         if need_stealth:
             await stealth(context_page=page)
@@ -498,6 +530,7 @@ class PersistentContextManager:
         * `msedge`: Edge
     * `abort_res_types`: 要屏蔽的资源类型
     * `accept_downloads`: 是否自动下载所有附件
+    * `add_init_script`: 要注入的 JavaScript 脚本内容
     * `args`: 浏览器启动参数，chrome 参照：
     * `base_url`: 基础链接
     * `bypass_csp`: 是否绕过 Content-Security-Policy
@@ -505,6 +538,8 @@ class PersistentContextManager:
     * `chromium_sandbox`: 是否启用 Chromium 沙箱模式
     * `client_certificates`: 证书
     * `color_scheme`: 模拟 prefers-colors-scheme
+    * `default_navigation_timeout`: 导航相关的默认超时时间
+    * `default_timeout`: 所有操作的默认超时时间
     * `device_scale_factor`: 缩放比例
     * `downloads_path`: 下载目录，会在浏览器上下文退出时会被删除
     * `env`: 指定浏览器可见的环境变量，默认为 process.env
@@ -522,6 +557,7 @@ class PersistentContextManager:
     * `ignore_https_errors`: 发送网络请求时是否忽略 HTTPS 错误
     * `is_mobile`: 是否为移动设备
     * `java_script_enabled`: 是否启用 JavaScript
+    * `launch_timeout`: 等待浏览器启动的超时时间（毫秒）
     * `locale`: 语言
     * `need_stealth`: 是否需要隐藏
     * `no_viewport`: 是否不固定视区小大
@@ -540,7 +576,6 @@ class PersistentContextManager:
     * `service_workers`: 是否允许站点注册 Service worker
     * `slow_mo`: 浏览器各项操作的时间间隔（毫秒）
     * `strict_selectors`: 是否启用选择器的严格模式
-    * `timeout`: 等待浏览器启动的超时时间（毫秒）
     * `timezone_id`: 时区
     * `traces_dir`: 跟踪的保存目录
     * `user_agent`: User-Agent
@@ -558,12 +593,15 @@ class PersistentContextManager:
         *,
         abort_res_types: Optional[Sequence[ResourceType]] = None,
         accept_downloads: bool = True,
+        add_init_script: Optional[str] = None,
         args: Optional[Sequence[str]] = None,
         base_url: Optional[str] = None,
         bypass_csp: bool = False,
         chromium_sandbox: bool = False,
         client_certificates: Optional[list[ClientCertificate]] = None,
         color_scheme: Literal['light', 'dark', 'no-preference', 'null'] = 'light',
+        default_navigation_timeout: int = 30_000,
+        default_timeout: int = 30_000,
         device_scale_factor: Optional[float] = None,
         downloads_path: Optional[StrOrPath] = None,
         env: Optional[dict[str, str | float | bool]] = None,
@@ -580,6 +618,7 @@ class PersistentContextManager:
         ignore_https_errors: bool = False,
         is_mobile: bool = False,
         java_script_enabled: bool = True,
+        launch_timeout: int = 30_000,
         locale: Optional[str] = None,
         need_stealth: bool = False,
         no_viewport: bool = True,
@@ -598,7 +637,6 @@ class PersistentContextManager:
         service_workers: Literal['allow', 'block'] = 'allow',
         slow_mo: float = 0,
         strict_selectors: bool = False,
-        timeout: int = 30_000,
         timezone_id: Optional[str] = None,
         traces_dir: Optional[StrOrPath] = None,
         user_agent: Optional[str] = None,
@@ -609,12 +647,15 @@ class PersistentContextManager:
         self.__channel = channel
         self.__abort_res_types = abort_res_types
         self.__accept_downloads = accept_downloads
+        self.__add_init_script = add_init_script
         self.__args = args
         self.__base_url = base_url
         self.__bypass_csp = bypass_csp
         self.__chromium_sandbox = chromium_sandbox
         self.__client_certificates = client_certificates
         self.__color_scheme: Literal['light', 'dark', 'no-preference', 'null'] = color_scheme
+        self.__default_navigation_timeout = default_navigation_timeout
+        self.__default_timeout = default_timeout
         self.__device_scale_factor = device_scale_factor
         self.__downloads_path = downloads_path
         self.__env = env
@@ -631,6 +672,7 @@ class PersistentContextManager:
         self.__ignore_https_errors = ignore_https_errors
         self.__is_mobile = is_mobile
         self.__java_script_enabled = java_script_enabled
+        self.__launch_timeout = launch_timeout
         self.__locale = locale
         self.__need_stealth = need_stealth
         self.__no_viewport = no_viewport
@@ -649,7 +691,6 @@ class PersistentContextManager:
         self.__service_workers: Literal['allow', 'block'] = service_workers
         self.__slow_mo = slow_mo
         self.__strict_selectors = strict_selectors
-        self.__timeout = timeout
         self.__timezone_id = timezone_id
         self.__traces_dir = traces_dir
         self.__user_agent = user_agent
@@ -678,69 +719,75 @@ class PersistentContextManager:
             async with _persistent_context_start_lock:
                 # 再次检查当前的 user_data_dir 是否未被用于其它持久化上下文
                 if self.__user_data_dir in self.__used_user_data_dirs:
-                    raise _BrowserLaunchedError(
-                        f'"{self.__user_data_dir}" 已被用于启动其它持久上下文'
-                    )
+                    raise _BrowserLaunchedError(f'"{self.__user_data_dir}" 已被用于启动其它持久上下文')
 
                 self.__used_user_data_dirs.add(self.__user_data_dir)
 
                 try:
                     self.__playwright = await _async_playwright().start()
-                    self.__persistent_context = (
-                        await self.__playwright.chromium.launch_persistent_context(
-                            user_data_dir=self.__user_data_dir,
-                            executable_path=self.__executable_path,
-                            channel=self.__channel,
-                            accept_downloads=self.__accept_downloads,
-                            args=self.__args,
-                            bypass_csp=self.__bypass_csp,
-                            base_url=self.__base_url,
-                            chromium_sandbox=self.__chromium_sandbox,
-                            client_certificates=self.__client_certificates,
-                            color_scheme=self.__color_scheme,
-                            device_scale_factor=self.__device_scale_factor,
-                            downloads_path=self.__downloads_path,
-                            env=self.__env,
-                            extra_http_headers=self.__extra_http_headers,
-                            forced_colors=self.__forced_colors,
-                            geolocation=self.__geolocation,
-                            handle_sighup=self.__handle_sighup,
-                            handle_sigint=self.__handle_sigint,
-                            handle_sigterm=self.__handle_sigterm,
-                            has_touch=self.__has_touch,
-                            headless=self.__headless,
-                            http_credentials=self.__http_credentials,
-                            ignore_default_args=self.__ignore_default_args,
-                            ignore_https_errors=self.__ignore_https_errors,
-                            is_mobile=self.__is_mobile,
-                            java_script_enabled=self.__java_script_enabled,
-                            locale=self.__locale,
-                            no_viewport=self.__no_viewport,
-                            offline=self.__offline,
-                            permissions=self.__permissions,
-                            proxy=self.__proxy,
-                            record_har_content=self.__record_har_content,
-                            record_har_mode=self.__record_har_mode,
-                            record_har_omit_content=self.__record_har_omit_content,
-                            record_har_path=self.__record_har_path,
-                            record_har_url_filter=self.__record_har_url_filter,
-                            record_video_dir=self.__record_video_dir,
-                            record_video_size=self.__record_video_size,
-                            reduced_motion=self.__reduced_motion,
-                            screen=self.__screen,
-                            service_workers=self.__service_workers,
-                            slow_mo=self.__slow_mo,
-                            strict_selectors=self.__strict_selectors,
-                            timeout=self.__timeout,
-                            timezone_id=self.__timezone_id,
-                            traces_dir=self.__traces_dir,
-                            user_agent=self.__user_agent,
-                            viewport=self.__viewport,
-                        )
+                    self.__persistent_context = await self.__playwright.chromium.launch_persistent_context(
+                        user_data_dir=self.__user_data_dir,
+                        executable_path=self.__executable_path,
+                        channel=self.__channel,
+                        accept_downloads=self.__accept_downloads,
+                        args=self.__args,
+                        bypass_csp=self.__bypass_csp,
+                        base_url=self.__base_url,
+                        chromium_sandbox=self.__chromium_sandbox,
+                        client_certificates=self.__client_certificates,
+                        color_scheme=self.__color_scheme,
+                        device_scale_factor=self.__device_scale_factor,
+                        downloads_path=self.__downloads_path,
+                        env=self.__env,
+                        extra_http_headers=self.__extra_http_headers,
+                        forced_colors=self.__forced_colors,
+                        geolocation=self.__geolocation,
+                        handle_sighup=self.__handle_sighup,
+                        handle_sigint=self.__handle_sigint,
+                        handle_sigterm=self.__handle_sigterm,
+                        has_touch=self.__has_touch,
+                        headless=self.__headless,
+                        http_credentials=self.__http_credentials,
+                        ignore_default_args=self.__ignore_default_args,
+                        ignore_https_errors=self.__ignore_https_errors,
+                        is_mobile=self.__is_mobile,
+                        java_script_enabled=self.__java_script_enabled,
+                        locale=self.__locale,
+                        no_viewport=self.__no_viewport,
+                        offline=self.__offline,
+                        permissions=self.__permissions,
+                        proxy=self.__proxy,
+                        record_har_content=self.__record_har_content,
+                        record_har_mode=self.__record_har_mode,
+                        record_har_omit_content=self.__record_har_omit_content,
+                        record_har_path=self.__record_har_path,
+                        record_har_url_filter=self.__record_har_url_filter,
+                        record_video_dir=self.__record_video_dir,
+                        record_video_size=self.__record_video_size,
+                        reduced_motion=self.__reduced_motion,
+                        screen=self.__screen,
+                        service_workers=self.__service_workers,
+                        slow_mo=self.__slow_mo,
+                        strict_selectors=self.__strict_selectors,
+                        timeout=self.__launch_timeout,
+                        timezone_id=self.__timezone_id,
+                        traces_dir=self.__traces_dir,
+                        user_agent=self.__user_agent,
+                        viewport=self.__viewport,
                     )
 
                     # 当持久化上下文被关闭时（可能是正常退出，也可能是程序崩溃）触发的回调
                     self.__persistent_context.on('close', self._on_context_close)
+
+                    # 设置默认超时时间
+                    # 所有操作的默认超时时间
+                    self.__persistent_context.set_default_timeout(self.__default_timeout)
+                    # 导航相关的默认超时时间
+                    self.__persistent_context.set_default_navigation_timeout(self.__default_navigation_timeout)
+
+                    # 注入 JavaScript 脚本
+                    if self.__add_init_script is not None:
+                        await self.__persistent_context.add_init_script(script=self.__add_init_script)
 
                     # 隐藏上下文
                     if self.__need_stealth:
@@ -748,9 +795,7 @@ class PersistentContextManager:
 
                     # 屏蔽特定资源
                     if self.__abort_res_types is not None:
-                        await abort_resources(
-                            context_page=self.__persistent_context, res_types=self.__abort_res_types
-                        )
+                        await abort_resources(context_page=self.__persistent_context, res_types=self.__abort_res_types)
 
                     return self
 
@@ -833,9 +878,7 @@ class PersistentContextManager:
         await self.close()
 
 
-async def stealth(
-    context_page: PlaywrightBrowserContext | PlaywrightPage, ignore_stealthed: bool = False
-) -> None:
+async def stealth(context_page: PlaywrightBrowserContext | PlaywrightPage, ignore_stealthed: bool = False) -> None:
     """隐藏浏览器上下文或页面"""
     # 如果浏览器上下文或页面已被隐藏会抛出异常
     if getattr(context_page, 'stealthed', None):
