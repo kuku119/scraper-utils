@@ -25,18 +25,20 @@ jobs:
       
       - name: 获取版本号
         id: get_poetry_version
+        shell: pwsh
         run: |
-          VERSION=$(poetry version -s)
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "当前版本: ${VERSION}"
+          $version = poetry version -s
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+          echo "当前版本: ${version}"
       
       - name: 创建 Git 标签
         if: github.ref_name == 'refs/heads/release'
+        shell: pwsh
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
-          TAG_NAME="v${{ steps.get_poetry_version.outputs.VERSION }}"
+          $TAG_NAME="v${{ steps.get_poetry_version.outputs.version }}"
           echo "创建标签: ${TAG_NAME}"
 
           git tag ${TAG_NAME}
@@ -49,6 +51,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: dist/*.whl
-          tag_name: v${{ steps.get_poetry_version.outputs.VERSION }}
-          name: Release v${{ steps.get_poetry_version.outputs.VERSION }}
+          tag_name: v${{ steps.get_poetry_version.outputs.version }}
+          name: Release v${{ steps.get_poetry_version.outputs.version }}
           generate_release_notes: true
