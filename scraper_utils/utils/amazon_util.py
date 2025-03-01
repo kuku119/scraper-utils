@@ -64,7 +64,8 @@ def build_detail_url(site: str, asin: str, language: Optional[str] = None) -> st
     if validate_asin(asin):
         if language is None:
             result = f'{AmazonSite.get_url(site=site)}/dp/{asin}'
-        result = f'{AmazonSite.get_url(site=site)}/-/{language}/dp/{asin}'
+        else:
+            result = f'{AmazonSite.get_url(site=site)}/-/{language}/dp/{asin}'
 
         return result
 
