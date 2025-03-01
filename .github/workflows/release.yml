@@ -1,0 +1,36 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - "v*"
+    branches:
+      - release
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检查代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.13"
+
+      - name: 安装 Poetry
+        run: pip install poetry
+
+      - name: 安装依赖
+        run: poetry install --no-interaction
+
+      - name: 构建 whl
+        run: poetry build
+
+      - name: 上传至 Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*.whl
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
