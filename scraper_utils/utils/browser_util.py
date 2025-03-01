@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from asyncio import Lock as _Lock
 from pathlib import Path as _Path
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING
 
 from playwright.async_api import async_playwright as _async_playwright
 from playwright_stealth import stealth_async as _stealth_async
