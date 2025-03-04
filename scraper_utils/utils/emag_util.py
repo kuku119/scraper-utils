@@ -10,7 +10,7 @@ from urllib.parse import quote_plus as _quote_plus
 
 
 if TYPE_CHECKING:
-    from typing import Generator
+    from typing import Generator, Optional
 
 __all__ = [
     'BASE_URL',
@@ -46,6 +46,7 @@ def build_search_urls(keyword: str, max_page: int = 1) -> Generator[str]:
 
 
 def validate_pnk(pnk: str) -> bool:
+    """验证是否符合 pnk 格式"""
     if len(pnk) != 9:
         return False
     return _re.match(r'^[0-9A-Z]{9}$', pnk) is not None
@@ -56,6 +57,14 @@ def build_product_url(pnk: str) -> str:
     if not validate_pnk(pnk=pnk):
         raise ValueError('pnk 不能为空')
     return f'{BASE_URL}/-/pd/{pnk}'
+
+
+def parse_pnk(url: str) -> Optional[str]:
+    """从链接中提取 pnk"""
+    m = _re.search(r'/pd/([0-9A-Z]{9})($|/|\?)', url)
+    if m is not None:
+        return m.group(1)
+    return None
 
 
 def clean_product_image_url(url: str) -> str:
