@@ -13,7 +13,7 @@ from PIL import Image as _PillowImageModule
 from .file_util import read_file as _read_file, write_file as _write_file
 
 if TYPE_CHECKING:
-    from typing import Optional, Literal, Awaitable, Annotated
+    from typing import Optional, Literal, Awaitable
 
     from PIL.Image import Image as PillowImage
 
