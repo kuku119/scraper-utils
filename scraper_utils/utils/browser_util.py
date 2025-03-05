@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from asyncio import Lock as _Lock
 from pathlib import Path as _Path
+from time import perf_counter
 from typing import TYPE_CHECKING
 
 from playwright.async_api import async_playwright as _async_playwright
@@ -899,3 +900,16 @@ async def abort_resources(
         '**/*',
         lambda r: (r.abort() if r.request.resource_type in res_types else r.continue_()),
     )
+
+
+async def wait_for_selector(
+    page: PlaywrightPage, selector: str, timeout: int = 30 * MS1000, interval: int = MS1000
+) -> bool:
+    """以 `interval` 的周期去检查 `page` 中有无 `selector` 元素。"""
+    start_time = perf_counter()
+    while True:
+        if (perf_counter() - start_time) > (timeout / 1000):
+            return False
+        if await page.locator(selector).count() > 0:
+            return True
+        await page.wait_for_timeout(interval)
