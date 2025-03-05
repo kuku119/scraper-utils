@@ -66,6 +66,7 @@ __all__ = [
     'PersistentContextManager',
     'stealth',
     'abort_resources',
+    'wait_for_selector',
 ]
 
 
