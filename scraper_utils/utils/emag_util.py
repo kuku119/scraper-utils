@@ -18,6 +18,7 @@ __all__ = [
     'build_search_urls',
     'validate_pnk',
     'build_product_url',
+    'parse_pnk',
     'clean_product_image_url',
 ]
 
