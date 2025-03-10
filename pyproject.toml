@@ -1,6 +1,6 @@
 [project]
 name = "scraper-utils"
-version = "1.0.4"
+version = "1.0.5"
 description = "爬虫所需工具"
 authors = [
     { name = "kuku119", email = "2846257141@qq.com" },
