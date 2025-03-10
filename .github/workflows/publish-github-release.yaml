@@ -1,0 +1,46 @@
+name: 推送版本标签时自动发布 Github Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 签出代码 (Checkout code)
+        uses: actions/checkout@v4
+
+      - name: 安装 Python (Setup Python)
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.13"
+
+      - name: 安装 Poetry (Install Poetry)
+        run: pip install poetry
+
+      - name: 检查版本 (Check version)
+        id: version-check
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          PROJECT_VERSION=$(poetry version -s)
+
+          if [ "$TAG_VERSION" != "$PROJECT_VERSION" ]; then
+            echo "::error::Version mismatch! Tag: $TAG_VERSION vs Project: $PROJECT_VERSION"
+            exit 1
+          fi
+
+      - name: 安装项目依赖 (Install project dependencies)
+        run: poetry install --only main
+
+      - name: 构建 wheel (Build wheel)
+        run: poetry build
+
+      - name: 上传至 Release (Upload to Release)
+        uses: softprops/action-gh-release@v1
+        if: success()
+        with:
+          files: dist/*
+          tag_name: ${{ github.ref_name }}
