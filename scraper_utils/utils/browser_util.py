@@ -401,7 +401,8 @@ class BrowserManager:
         user_agent: Optional[str] = None,
         viewport: Optional[ViewportSize] = None,
     ) -> PlaywrightPage:
-        """创建新页面
+        """
+        创建新页面
 
         ---
 
@@ -445,16 +446,17 @@ class BrowserManager:
         * `user_agent`: User-Agent
         * `viewport`: 视区小大
         """
-        # 不加这个判断为空也没问题
-        if not self.is_started() or self.__browser is None:
-            raise _BrowserClosedError('浏览器已经关闭或还未启动')
 
-        page = await self.__browser.new_page(
+        context = await self.new_context(
+            abort_res_types=abort_res_types,
             accept_downloads=accept_downloads,
+            add_init_script=add_init_script,
             base_url=base_url,
             bypass_csp=bypass_csp,
             client_certificates=client_certificates,
             color_scheme=color_scheme,
+            default_navigation_timeout=default_navigation_timeout,
+            default_timeout=default_timeout,
             device_scale_factor=device_scale_factor,
             extra_http_headers=extra_http_headers,
             forced_colors=forced_colors,
@@ -465,6 +467,7 @@ class BrowserManager:
             is_mobile=is_mobile,
             java_script_enabled=java_script_enabled,
             locale=locale,
+            need_stealth=need_stealth,
             no_viewport=no_viewport,
             offline=offline,
             permissions=permissions,
@@ -485,6 +488,7 @@ class BrowserManager:
             user_agent=user_agent,
             viewport=viewport,
         )
+        page = await context.new_page()
 
         # 设置默认超时时间
         # 所有操作的默认超时时间
