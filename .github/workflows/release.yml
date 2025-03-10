@@ -1,9 +1,9 @@
-name: 自动创建标签并发布 Release
+name: 推送版本标签时自动发布 Release
 
 on:
   push:
-    branches:
-      - release
+    tags:
+      - "v*"
 
 jobs:
   build-and-publish:
@@ -20,9 +20,23 @@ jobs:
       - name: 安装 Poetry
         run: pip install poetry
 
+      - name: 缓存 pip 包
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ hashFiles('**/requirements.txt') }}
+
+      - name: 缓存 Poetry 虚拟环境
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pypoetry/virtualenvs/
+            dist/
+          key: poetry-${{ hashFiles('poetry.lock') }}
+
       - name: 安装依赖
         run: poetry install --no-interaction
-      
+
       - name: 获取版本号
         id: get_poetry_version
         shell: pwsh
@@ -30,19 +44,23 @@ jobs:
           $version = poetry version -s
           echo "version=$version" >> $env:GITHUB_OUTPUT
           echo "当前版本: ${version}"
-      
-      - name: 创建 Git 标签
-        if: github.ref_name == 'refs/heads/release'
+
+      - name: 校验版本号一致性
         shell: pwsh
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+          # 使用正则严格匹配语义化版本 (SemVer)
+          $tagVersion = $env:GITHUB_REF -replace '^refs/tags/v?',''
+          $poetryVersion = poetry version -s
 
-          $TAG_NAME="v${{ steps.get_poetry_version.outputs.version }}"
-          echo "创建标签: ${TAG_NAME}"
+          if ($tagVersion -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+)?$') {
+            Write-Error "标签版本格式无效: $tagVersion"
+            exit 1
+          }
 
-          git tag ${TAG_NAME}
-          git push origin ${TAG_NAME}
+          if ($tagVersion -ne $poetryVersion) {
+            Write-Error "::error::版本不一致！标签版本: $tagVersion ≠ 项目版本: $poetryVersion"
+            exit 1
+          }
 
       - name: 构建 whl
         run: poetry build
