@@ -2,7 +2,6 @@
 
 ### 核心依赖
 * [aiofiles](https://pypi.org/project/aiofiles)
-* [aiohttp](https://pypi.org/project/aiohttp)
 * [openpyxl](https://pypi.org/project/openpyxl)
 * [pillow](https://pypi.org/project/pillow)
 * [playwright](https://playwright.dev)
