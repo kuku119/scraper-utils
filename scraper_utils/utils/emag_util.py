@@ -33,12 +33,11 @@ def build_search_url(keyword: str, page: int = 1) -> str:
         raise ValueError(f'keyword 不能为空')
 
     keyword = _quote_plus(keyword)
-    if page == 1:
-        result = f'{BASE_URL}/search/{keyword}'
-    else:
-        result = f'{BASE_URL}/search/{keyword}/p{page}'
 
-    return result
+    if page == 1:
+        return f'{BASE_URL}/search/{keyword}'
+    else:
+        return f'{BASE_URL}/search/{keyword}/p{page}'
 
 
 def build_search_urls(keyword: str, max_page: int = 1) -> Generator[str]:
