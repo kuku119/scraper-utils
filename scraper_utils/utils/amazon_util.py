@@ -12,7 +12,7 @@ from ..enums.amazon_enum import AmazonSite
 from .text_util import is_number as _is_number
 
 if TYPE_CHECKING:
-    from typing import Generator, Optional
+    from typing import Generator
 
 
 __all__ = [
@@ -26,7 +26,7 @@ __all__ = [
 ]
 
 
-def build_search_url(site: str, keyword: str, page: int = 1, language: Optional[str] = None) -> str:
+def build_search_url(site: str, keyword: str, page: int = 1) -> str:
     """根据站点、关键词、页码构造关键词搜索页链接"""
     if page < 1:
         raise ValueError(f'page 必须大于 0，page={page}')
@@ -36,14 +36,9 @@ def build_search_url(site: str, keyword: str, page: int = 1, language: Optional[
     keyword = _quote_plus(keyword)
 
     if page == 1:
-        result = f'{AmazonSite.get_url(site=site)}/s?k={keyword}'
+        return f'{AmazonSite.get_url(site=site)}/s?k={keyword}'
     else:
-        result = f'{AmazonSite.get_url(site=site)}/s?k={keyword}&page={page}'
-
-    if language is not None:
-        result += f'&language={language}'
-
-    return result
+        return f'{AmazonSite.get_url(site=site)}/s?k={keyword}&page={page}'
 
 
 def build_search_urls(site: str, keyword: str, max_page: int = 1) -> Generator[str]:
@@ -55,46 +50,27 @@ def validate_asin(asin: str) -> bool:
     """验证是否符合 ASIN 格式"""
     if len(asin) != 10:
         return False
-    # return _asin_pattern.match(asin) is not None
     return _re.match(r'^[A-Z0-9]{10}$', asin) is not None
 
 
-def build_detail_url(site: str, asin: str, language: Optional[str] = None) -> str:
+def build_detail_url(site: str, asin: str) -> str:
     """根据站点、ASIN 构造产品详情页链接"""
     if validate_asin(asin):
-        if language is None:
-            result = f'{AmazonSite.get_url(site=site)}/dp/{asin}'
-        else:
-            result = f'{AmazonSite.get_url(site=site)}/-/{language}/dp/{asin}'
-
-        return result
-
+        return f'{AmazonSite.get_url(site=site)}/dp/{asin}'
     raise ValueError(f'"{asin}" 不符合 ASIN 规范')
 
 
-def build_bsr_url(site: str, node: str, language: Optional[str] = None) -> str:
+def build_bsr_url(site: str, node: str) -> str:
     """根据站点、BSR 节点构造 BSR 链接"""
     if _is_number(s=node):
-        if language is None:
-            result = f'{AmazonSite.get_url(site=site)}/bestsellers/-/{node}'
-        else:
-            result = f'{AmazonSite.get_url(site=site)}/-/{language}/bestsellers/-/{node}'
-
-        return result
-
+        return f'{AmazonSite.get_url(site=site)}/bestsellers/-/{node}'
     raise ValueError(f'"{node}" 不符合节点规范')
 
 
-def build_new_releases_url(site: str, node: str, language: Optional[str] = None) -> str:
+def build_new_releases_url(site: str, node: str) -> str:
     """根据站点、节点构造新品链接"""
     if _is_number(s=node):
-        if language is None:
-            result = f'{AmazonSite.get_url(site=site)}/new-releases/-/{node}'
-        else:
-            result = f'{AmazonSite.get_url(site=site)}/-/{language}/new-releases/-/{node}'
-
-        return result
-
+        return f'{AmazonSite.get_url(site=site)}/new-releases/-/{node}'
     raise ValueError(f'"{node}" 不符合节点规范')
 
 
