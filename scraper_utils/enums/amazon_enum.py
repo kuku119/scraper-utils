@@ -8,7 +8,7 @@ from enum import Enum as _Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Generator
+    from typing import Generator, Self
 
 
 __all__ = [
@@ -45,11 +45,11 @@ class AmazonSite(_Enum):
         return self.value
 
     @classmethod
-    def get_site(cls, site: str):
+    def get_site(cls, site: str) -> Self:
         """根据 site 获取对应的站点"""
         site = site.upper()
         if any(site == s.name for s in cls.supported_sites()):
-            return AmazonSite[site]
+            return cls[site]
         else:
             raise ValueError(f'不支持的站点 "{site}"')
 
@@ -59,7 +59,7 @@ class AmazonSite(_Enum):
         return cls.get_site(site=site).url
 
     @classmethod
-    def supported_sites(cls) -> Generator['AmazonSite']:
+    def supported_sites(cls) -> Generator[Self]:
         """支持的站点"""
         for site in cls:
             yield site
