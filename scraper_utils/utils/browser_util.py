@@ -23,18 +23,14 @@ from ..exceptions.browser_exception import (
 
 if TYPE_CHECKING:
     from re import Pattern
-    from typing import (
-        Optional,
-        Literal,
-        Sequence,
-        Self,
-    )
+    from typing import Optional, Literal, Sequence, Self
 
     from playwright._impl._api_structures import ClientCertificate
     from playwright.async_api import (
         BrowserContext as PlaywrightBrowserContext,
         Browser as PlaywrightBrowser,
         Page as PlaywrightPage,
+        Locator,
         Playwright,
         ProxySettings,
         ViewportSize,
@@ -66,7 +62,7 @@ __all__ = [
     'PersistentContextManager',
     'stealth',
     'abort_resources',
-    'wait_for_selector',
+    'wait_for_locator',
 ]
 
 
@@ -907,14 +903,14 @@ async def abort_resources(
     )
 
 
-async def wait_for_selector(
-    page: PlaywrightPage, selector: str, timeout: int = 30 * MS1000, interval: int = MS1000
+async def wait_for_locator(
+    page: PlaywrightPage, locator: Locator, timeout: int = 30_000, interval: int = 1_000
 ) -> bool:
-    """以 `interval` 的周期去检查 `page` 中有无 `selector` 元素。"""
+    """在超时事件内定期检查页面中有无特定元素。"""
     start_time = perf_counter()
     while True:
         if (perf_counter() - start_time) > (timeout / 1000):
             return False
-        if await page.locator(selector).count() > 0:
+        if await locator.count() > 0:
             return True
         await page.wait_for_timeout(interval)
