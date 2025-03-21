@@ -10,7 +10,7 @@ from urllib.parse import quote_plus as _quote_plus
 
 
 if TYPE_CHECKING:
-    from typing import Generator, Optional
+    from typing import Generator, Optional, Any
 
 __all__ = [
     'BASE_URL',
@@ -18,7 +18,7 @@ __all__ = [
     'build_search_urls',
     'validate_pnk',
     'build_product_url',
-    'parse_pnk',
+    'parse_pnk_from_url',
     'clean_product_image_url',
 ]
 
@@ -45,21 +45,19 @@ def build_search_urls(keyword: str, max_page: int = 1) -> Generator[str]:
     return (build_search_url(keyword=keyword, page=i) for i in range(1, max_page + 1))
 
 
-def validate_pnk(pnk: str) -> bool:
+def validate_pnk(pnk: Any) -> bool:
     """验证是否符合 pnk 格式"""
-    if len(pnk) != 9:
-        return False
-    return _re.match(r'^[0-9A-Z]{9}$', pnk) is not None
+    return isinstance(pnk, str) and _re.match(r'^[0-9A-Z]{9}$', pnk) is not None
 
 
 def build_product_url(pnk: str) -> str:
     """构造产品页链接"""
     if not validate_pnk(pnk=pnk):
-        raise ValueError('pnk 不能为空')
+        raise ValueError(f'{pnk} 不符合 pnk 规则')
     return f'{BASE_URL}/-/pd/{pnk}'
 
 
-def parse_pnk(url: str) -> Optional[str]:
+def parse_pnk_from_url(url: str) -> Optional[str]:
     """从链接中提取 pnk"""
     m = _re.search(r'/pd/([0-9A-Z]{9})($|/|\?)', url)
     if m is not None:
